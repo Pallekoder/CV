@@ -192,6 +192,10 @@ def purity(exps: Iterable[Experience]) -> float:
     return max(pos, len(signs) - pos) / len(signs)
 
 
+KEEP_LIVED = 1500   # featured experiences a channel carries at most; the oldest go first
+KEEP_BARE = 200     # featureless ones (own sounds, contacts) it carries at most
+
+
 class Channel:
     def __init__(self) -> None:
         self.experiences: dict[int, Experience] = {}
@@ -343,6 +347,28 @@ class Channel:
         if cat.parent is not None:
             self.categories[cat.parent].members |= cat.members
         return cat
+
+    # -- forgetting --------------------------------------------------------
+
+    def forget(self, keep_lived: int = KEEP_LIVED, keep_bare: int = KEEP_BARE) -> int:
+        """Drop the oldest experiences beyond what the channel carries.
+
+        The ledger is the record and never forgets; the channel is what the
+        mind works with, and a lineage that never forgot would slow to a
+        halt. Categories keep their rules; they only lose the members that
+        go. Returns how many were dropped.
+        """
+        featured = sorted((i for i, e in self.experiences.items() if e.features is not None))
+        bare = sorted((i for i, e in self.experiences.items() if e.features is None))
+        gone = featured[:max(0, len(featured) - keep_lived)] + bare[:max(0, len(bare) - keep_bare)]
+        if not gone:
+            return 0
+        dropped = set(gone)
+        for i in gone:
+            del self.experiences[i]
+        for cat in self.categories.values():
+            cat.members -= dropped
+        return len(gone)
 
     # -- persistence -------------------------------------------------------
 

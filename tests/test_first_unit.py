@@ -80,6 +80,49 @@ class TheOneTruth(unittest.TestCase):
         self.assertEqual(Valence(0.0).sign, 0)
 
 
+class Endless(unittest.TestCase):
+    def test_a_ledger_archives_its_past_and_still_verifies(self):
+        ledger = Ledger()
+        for i in range(10):
+            ledger.append(i, "a", n=i)
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "record.jsonl"
+            self.assertEqual(ledger.archive(path, keep=4), 6)
+            lines = path.read_text().splitlines()
+            self.assertEqual(len(lines), 6)
+            self.assertEqual(json.loads(lines[-1])["hash"], ledger[6].prev_hash)
+        self.assertEqual(len(ledger), 10)
+        self.assertEqual(ledger.base, 6)
+        self.assertTrue(ledger.verify())
+        self.assertEqual(ledger[9].payload["n"], 9)
+        with self.assertRaises(IndexError):
+            ledger[2]
+        self.assertEqual([e.payload["n"] for e in ledger.since(8)], [8, 9])
+        ledger.append(10, "a", n=10)
+        self.assertEqual(len(ledger), 11)
+        again = Ledger.from_list(ledger.to_list())
+        self.assertTrue(again.verify())
+        self.assertEqual(again.base, 6)
+        rows = ledger.to_list()
+        rows[1]["payload"]["n"] = 99
+        with self.assertRaises(ValueError):
+            Ledger.from_list(rows)
+
+    def test_a_channel_forgets_its_oldest_and_keeps_its_rules(self):
+        channel = lived_channel(30)
+        hi, lo = channel.split(Rule(0, 0.0), 1, coin)
+        before = len(hi.members) + len(lo.members)
+        self.assertEqual(before, 30)
+        channel.add(Experience(index=100, tick=2, features=None, token="sound"))
+        dropped = channel.forget(keep_lived=10, keep_bare=5)
+        self.assertEqual(dropped, 20)
+        self.assertEqual(len([e for e in channel.experiences.values() if e.features is not None]), 10)
+        self.assertEqual(min(i for i, e in channel.experiences.items() if e.features is not None), 20, "the oldest went")
+        self.assertEqual(len(hi.members) + len(lo.members), 10)
+        self.assertEqual(set(channel.categories), {hi.name, lo.name}, "rules stay")
+        self.assertIn(100, channel.experiences)
+
+
 class Irreversibility(unittest.TestCase):
     def test_ledger_exposes_no_way_to_edit_or_remove(self):
         public = {n for n in dir(Ledger) if not n.startswith("_")}

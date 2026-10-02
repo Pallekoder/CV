@@ -1,0 +1,15 @@
+services:
+  world:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - world_data:/data
+    environment:
+      WORLD_LAW: corner
+      WORLD_BEINGS: "12"
+      WORLD_SPEED: "4"
+      # WORLD_TOKEN: choose-a-long-secret   # set this before exposing the port to the internet
+volumes:
+  world_data:

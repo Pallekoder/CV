@@ -60,6 +60,8 @@ COST = {"touch": 0.5, "consume": 1.0, "rest": 0.0}
 ECHO_SCALE = 0.3     # how far away a lived consequence still echoes
 VARIATION = 0.15     # how far a child's tendencies drift from its parent's
 BOUND = 3.0          # how far a tendency can be bent within a life
+KEEP_PUZZLES = 500   # puzzles held at most; the oldest go first
+KEEP_PERSPECTIVES = 500
 
 FROZEN: frozenset = frozenset()   # tendencies held at zero, for experiments asking what a knob does
 
@@ -286,6 +288,7 @@ class Mind:
         self.ledger.append(t, "visit", source=p.source, remark=p.remark,
                            proposal=p.proposal.to_dict() if p.proposal else None)
         self.perspectives.append(p)
+        del self.perspectives[:-KEEP_PERSPECTIVES]
         if p.proposal is not None:
             self._offered.append(p)
         return [f"  a visitor, {p.source}: {p.remark}"]
@@ -354,6 +357,7 @@ class Mind:
             found = self.ledger.append(t, "puzzle", about=e.index, token=token, exp=index)
             self.channel.add(Experience(index=index, tick=t, features=None, token=token))
             self.puzzles.append(Puzzle(about=e.index, found=found.index, tick=t, token=token, exp=index))
+            del self.puzzles[:-KEEP_PUZZLES]
             self.accounted.add(e.index)
             source = "its own" if e.kind == "utterance" else "a distant"
             lines.append(

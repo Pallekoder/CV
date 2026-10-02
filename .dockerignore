@@ -1,0 +1,5 @@
+.git
+state
+__pycache__
+*.pyc
+tests

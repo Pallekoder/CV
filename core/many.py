@@ -157,6 +157,8 @@ class World:
                                    disposition=child.mind.disposition.to_dict())
             kept.append(child)
             born.append(child)
+        for b in living:
+            b.channel.forget()
         self.beings = kept
         self.generation += 1
         return {"died": dead, "born": born, "living": living, "extinct": extinct}

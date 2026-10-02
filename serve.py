@@ -14,7 +14,9 @@ teachers visit, say something to all who live, and begin a new world.
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
+import os
 import random
 import signal
 import sys
@@ -35,6 +37,16 @@ from view import history_lines
 DIMS = 4
 HERE = Path(__file__).resolve().parent
 PAGE = HERE / "ui" / "index.html"
+KEEP_RECORD = 3000      # world-record entries kept in the save file; older ones go to record.jsonl
+KEEP_SEALED = 2000      # sealed ledgers of the dead kept on disk; the world's record keeps every death
+KEEP_HISTORY = 5000
+
+
+def env(name: str, default):
+    value = os.environ.get(name)
+    if value is None or value == "":
+        return default
+    return type(default)(value) if not isinstance(default, bool) else value.lower() in ("1", "true", "yes")
 
 
 class Runner:
@@ -50,6 +62,7 @@ class Runner:
         self.speed = float(args.speed)         # ticks per second
         self.paused = bool(args.paused)
         self.steps_wanted = 0
+        self.token = args.token or ""          # when set, only requests that carry it may steer the world
         self.stop = threading.Event()
         if state.exists() and not args.fresh:
             self.world = load(state, default_teachers)
@@ -79,8 +92,23 @@ class Runner:
         return world
 
     def persist(self) -> None:
-        save(self.state_path, self.world)
+        w = self.world
+        w.ledger.archive(self.state_path.parent / "record.jsonl", KEEP_RECORD)
+        save(self.state_path, w)
+        del self.history[:-KEEP_HISTORY]
         (self.state_path.parent / "history.json").write_text(json.dumps(self.history))
+        alive = {b.id for b in w.beings}
+        for bid in [k for k in self.recent if k not in alive]:
+            del self.recent[bid]
+        self.prune_sealed()
+
+    def prune_sealed(self) -> None:
+        """Keep the newest sealed ledgers; the world's record keeps every death."""
+        if not self.gone_dir.is_dir():
+            return
+        files = sorted(self.gone_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
+        for path in files[:-KEEP_SEALED]:
+            path.unlink(missing_ok=True)
 
     def note(self, text: str) -> None:
         self.events.append({"gen": getattr(self, "world", None) and self.world.generation, "text": text})
@@ -218,6 +246,8 @@ class Runner:
 
     def control(self, cmd: dict) -> dict:
         action = cmd.get("action")
+        if action == "whoami":
+            return {"ok": True, "protected": bool(self.token)}
         with self.lock:
             w = self.world
             if action == "pause":
@@ -288,6 +318,8 @@ def make_handler(runner: Runner):
             elif url.path == "/api/state":
                 with runner.lock:
                     self.send_json(runner.state())
+            elif url.path == "/healthz":
+                self.send_json({"ok": True, "generation": runner.world.generation})
             elif url.path == "/api/being":
                 q = parse_qs(url.query)
                 i = int(q.get("i", ["0"])[0])
@@ -309,6 +341,9 @@ def make_handler(runner: Runner):
                 self.send_json({"ok": False, "error": "bad json"}, 400)
                 return
             if url.path == "/api/control":
+                if runner.token and cmd.get("action") != "whoami" and self.headers.get("X-World-Token", "") != runner.token:
+                    self.send_json({"ok": False, "error": "token"}, 401)
+                    return
                 self.send_json(runner.control(cmd))
             else:
                 self.send_json({"error": "not found"}, 404)
@@ -318,18 +353,20 @@ def make_handler(runner: Runner):
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--port", type=int, default=8000)
-    ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--state", default=str(Path("state") / "world.json"))
+    ap.add_argument("--port", type=int, default=env("PORT", 8000))
+    ap.add_argument("--host", default=env("WORLD_HOST", "127.0.0.1"))
+    ap.add_argument("--state", default=env("WORLD_STATE", str(Path("state") / "world.json")))
     ap.add_argument("--fresh", action="store_true", help="discard any saved world")
-    ap.add_argument("--beings", type=int, default=12)
-    ap.add_argument("--law", choices=LAW_KINDS, default=None)
-    ap.add_argument("--visits", type=int, default=0)
-    ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--ticks", type=int, default=60)
+    ap.add_argument("--beings", type=int, default=env("WORLD_BEINGS", 12))
+    ap.add_argument("--law", choices=LAW_KINDS, default=env("WORLD_LAW", "") or None)
+    ap.add_argument("--visits", type=int, default=env("WORLD_VISITS", 0))
+    ap.add_argument("--seed", type=int, default=env("WORLD_SEED", 0))
+    ap.add_argument("--ticks", type=int, default=env("WORLD_TICKS", 60))
     ap.add_argument("--first-ticks", type=int, default=12)
-    ap.add_argument("--speed", type=float, default=4.0, help="ticks per second to start with")
+    ap.add_argument("--speed", type=float, default=env("WORLD_SPEED", 4.0), help="ticks per second to start with")
     ap.add_argument("--paused", action="store_true")
+    ap.add_argument("--token", default=env("WORLD_TOKEN", ""),
+                    help="if set, the page must present this to steer the world; watching needs nothing")
     args = ap.parse_args(argv)
 
     runner = Runner(Path(args.state), args)
@@ -346,7 +383,8 @@ def main(argv=None) -> int:
     signal.signal(signal.SIGINT, lambda *a: threading.Thread(target=shutdown).start())
     signal.signal(signal.SIGTERM, lambda *a: threading.Thread(target=shutdown).start())
     print(f"the world is running at http://{args.host}:{args.port}  (generation {runner.world.generation}, "
-          f"{len(runner.world.living)} living; {runner.speed:g} ticks per second)")
+          f"{len(runner.world.living)} living; {runner.speed:g} ticks per second; "
+          f"{'steering needs the token' if runner.token else 'anyone who can reach it can steer it'})", flush=True)
     try:
         server.serve_forever()
     finally:

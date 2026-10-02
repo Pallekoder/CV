@@ -58,6 +58,7 @@ class Being:
         rng = random.Random(f"being:{world_seed}:{bid}")
         ledger = Ledger()
         channel = Channel.from_dict(self.channel.to_dict())
+        channel.forget()
         mind = Mind(ledger, channel, teachers, rng, self.mind.nature.vary(rng),
                     visit_rate, random.Random(f"visits:{world_seed}:{bid}"))
         mind.perspectives = list(self.mind.perspectives)

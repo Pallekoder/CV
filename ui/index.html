@@ -109,7 +109,17 @@
 <script>
 const $ = s => document.querySelector(s);
 let selected = 0, lastState = null;
-const post = (body) => fetch('/api/control', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+let token = ''; try { token = localStorage.getItem('world-token') || ''; } catch (e) {}
+async function post(body, retry = true) {
+  const r = await fetch('/api/control', {method:'POST', headers:{'Content-Type':'application/json', 'X-World-Token': token}, body: JSON.stringify(body)});
+  if (r.status === 401 && retry) {
+    const t = prompt('This world is protected. The token to steer it:');
+    if (t === null) return r;
+    token = t.trim(); try { localStorage.setItem('world-token', token); } catch (e) {}
+    return post(body, false);
+  }
+  return r;
+}
 const speedFromSlider = v => Math.pow(10, parseFloat(v));
 const sliderFromSpeed = s => Math.log10(Math.max(0.05, s));
 
