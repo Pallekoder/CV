@@ -439,4 +439,36 @@ inheritance is now intact.
    the majority of seeds, in both conditions, since children now actually
    carry what their parents lived.
 
-**Results.** (to be written after the runs)
+**Results.** Children of survivors against strangers, one generation in
+identical fresh shells; margin is strangers' life lost minus children's;
+in brackets, the same seed before the fix.
+
+| seed | frozen: margin | free: margin | frozen: harmful consumes, gen 1 to 19 | free: same |
+|---|---|---|---|---|
+| 0 | -0.66 (-0.83) | -0.94 (+1.07) | 40% to 38% | 41% to 40% |
+| 1 | -0.46 (-0.21) | -1.19 (-1.27) | 43% to 37% | 44% to 39% |
+| 2 | +2.15 (+2.73) | +1.47 (+0.58) | 60% to 21% | 60% to 34% |
+| 3 | +3.04 (-0.61) | +2.06 (+2.14) | 43% to 13% | 43% to 24% |
+| 4 | +2.80 (+2.93) | +1.60 (+1.12) | 52% to 18% | 55% to 37% |
+| 5 | +2.06 (+1.40) | +0.94 (+1.27) | 62% to 36% | 62% to 34% |
+
+Frozen: children lose less in 4 of 6, mean margin +1.49. Free: 4 of 6,
+mean margin +0.66. Children survive the trial better than strangers in
+all twelve runs.
+
+Scored against the predictions:
+
+1. Right: four of six in both.
+2. Wrong: +1.49 against +0.66.
+3. Wrong: larger than before the fix in three of six, in each condition.
+
+**What it means.** Two worlds, seeds 0 and 1, give lineages no edge over
+strangers under either policy. In the other four the edge is large, and
+larger without the body knobs than with them, both in the margin and in
+how far the share of harmful consumes falls. The verdict that the two
+policies come out about even was drawn on corrupted inheritance and is
+withdrawn. On these six seeds the plainer policy avoids harm better. Six
+seeds is still six seeds; what is firmer is the order of operations:
+check the plumbing before drawing the conclusion. What survives every
+rerun is unit two's finding itself: nobody told them to avoid harm, and
+in four of six worlds the ones who are around do.

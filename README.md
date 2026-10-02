@@ -135,21 +135,26 @@ identical pair; the first consequence is a surprise; the sound is written
 and the why is not; the next tick finds the sound with no cause and holds
 it as a puzzle; the paradox is lived and no surface rule survives it.
 
-**The many** (unit two, 24 beings, 20 generations, three seeds): the share
-of consumes that hit a negative fell from 42, 43 and 62 percent to 27, 25
-and 9 percent. Children of survivors lost less than half the life that
-strangers lost in identical fresh shells. Nobody told them to avoid harm.
+**The many** (unit two's policy on the fixed code: six seeds, 24 beings,
+20 generations, no teacher): in four of the six worlds the share of
+consumes that hit a negative fell by more than half over the generations
+(60 to 21 percent, 43 to 13, 52 to 18, 62 to 36), and children of
+survivors lost less than half the life that strangers lost in identical
+fresh shells (1.84 against 3.99, 1.00 against 4.04, 1.89 against 4.69,
+1.78 against 3.84). In the other two worlds lineages did no better than
+strangers. In all six, more children than strangers were still alive at
+the end. Nobody told them to avoid harm.
 
-**The body in the choice** (unit three): hungry children of survivors
-act about twice as much as hungry strangers and survive far better. On
-harm avoidance, a paired control on six seeds, same founders and shells
-with the knobs held at zero or free, came out about even: children beat
-strangers in 5 of 6 seeds with the knobs and 3 of 6 without, with mean
-margins of +0.82 and +0.90. Unit two's three clean wins were partly the
-luck of its draws. In three of six free worlds the bending knob was
-selected entirely negative and used as a damper: each success winds a
-being's drives down toward rest, so it stops before the bad forms are all
-that is left. Nobody offered it as a damper.
+**The body in the choice** (unit three's knobs, same seeds, paired on the
+same founders and shells): hungry children of survivors act about twice as
+much as hungry strangers and survive far better. On harm avoidance the
+knobs cost something: the children's mean edge over strangers is +0.66
+with them and +1.49 without, and the share of harmful consumes falls less.
+Three earlier verdicts on this question, in the notebook, were drawn from
+three seeds, then from corrupted inheritance; this is the one on intact
+inheritance, and it is six seeds. In three of six free worlds the bending
+knob was selected entirely negative, winding a being's drives down after
+each success; nobody offered it as a damper.
 
 **Narrowing** (a corner world, 12 beings, 20 generations, no teacher):
 the first versions grew thickets, then showed trees that turned out to

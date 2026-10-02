@@ -107,17 +107,21 @@ each is a place where a direction could have crept in.
 ## What unit three showed, and the rule it illustrates
 
 With the body in the choice, hungry children of survivors act about twice
-as much as hungry strangers and survive far better. The first three-seed
-run also showed narrower harm-avoidance margins than unit two, and the
-notebook entry for it concluded that richer was worse. A paired control on
-six seeds, the same founders and shells with the knobs frozen or free,
-then came out about even. The conclusion had been drawn from variance.
+as much as hungry strangers and survive far better. On harm avoidance the
+question went through three verdicts. The first three-seed run said the
+knobs made things worse; a paired control said the two policies were
+about even; both were computed before the inherited-channel bug was found.
+On intact inheritance, six seeds paired on the same founders and shells,
+the plainer policy avoids harm better: a mean edge over strangers of
++1.49 without the knobs against +0.66 with them, and a larger fall in the
+share of harmful consumes.
 
-The rule this illustrates is the brief's discipline: predict, run, and let
-the surprise correct you, including the surprise that an earlier surprise
-was noise. One finding survived the control: in three of six free worlds
-the bending knob was selected entirely negative, winding a being's drives
-down after each success. A knob offered as learning was used as a damper.
+The rule this illustrates is the brief's discipline, with one addition:
+predict, run, let the surprise correct you, and check the plumbing before
+believing a result. One finding held through every rerun: in half of the
+free worlds the bending knob was selected entirely negative, winding a
+being's drives down after each success. A knob offered as learning was
+used as a damper.
 
 ## Answers to the first review
 
