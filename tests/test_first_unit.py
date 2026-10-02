@@ -12,6 +12,7 @@ from core.channel import Channel, Experience, Rule
 from core.god import God
 from core.ledger import Ledger
 from core.many import World
+from core import mind as mind_module
 from core.mind import LIFE_START, Body, Disposition, Mind
 from core.persist import load, save
 from core.symbols import SYLLABLES, coin
@@ -20,8 +21,9 @@ from core.valence import TruthViolation, Valence, assert_truth
 from shell.seed import build, first_moment, law_for, scatter
 from shell.space import Form, Gone, Space
 
-CAUTIOUS = Disposition(novelty=1.0, echo=0.0, kin=0.0, bold=-1.0, heat=0.01)   # touches the new
-BOLD = Disposition(novelty=1.0, echo=0.0, kin=0.0, bold=1.0, heat=0.01)        # consumes the new
+NEUTRAL = dict(novelty=0.0, echo=0.0, kin=0.0, bold=0.0, hungry=0.0, hurt=0.0, heat=0.001, plasticity=0.0)
+CAUTIOUS = Disposition(**{**NEUTRAL, "novelty": 1.0, "bold": -1.0, "heat": 0.01})   # touches the new
+BOLD = Disposition(**{**NEUTRAL, "novelty": 1.0, "bold": 1.0, "heat": 0.01})        # consumes the new
 
 
 def make_core(seed: int = 0, dims: int = 4, disposition=None):
@@ -242,7 +244,7 @@ class Tendencies(unittest.TestCase):
     def test_every_tendency_can_be_born_with_either_sign(self):
         rng = random.Random(5)
         draws = [Disposition.random(rng) for _ in range(300)]
-        for name in ("novelty", "echo", "kin", "bold"):
+        for name in ("novelty", "echo", "kin", "bold", "hungry", "hurt", "plasticity"):
             values = [getattr(d, name) for d in draws]
             self.assertTrue(any(v > 0 for v in values), name)
             self.assertTrue(any(v < 0 for v in values), name)
@@ -253,13 +255,28 @@ class Tendencies(unittest.TestCase):
         for echo, goes_back in ((-1.0, True), (+1.0, False)):
             ledger, channel = Ledger(), Channel()
             channel.add(Experience(index=0, tick=0, features=hurt, token="x", valence=-0.8))
-            d = Disposition(novelty=0.0, echo=echo, kin=0.0, bold=0.0, heat=0.001)
+            d = Disposition(**{**NEUTRAL, "echo": echo})
             mind = Mind(ledger, channel, [], random.Random(0), d)
             space = Space([Form("hurt", hurt, -0.8), Form("far", far, +0.8)], dims=2, label="t")
             mind.enter(space)
             obs = space.perceive()
             picks = {mind.choose(obs, mind.notice(obs, 1))[1] for _ in range(5)}
             self.assertEqual("hurt" in picks, goes_back, f"echo {echo:+}")
+
+    def test_a_frozen_knob_changes_nothing_else(self):
+        free = Disposition.random(random.Random(11))
+        try:
+            mind_module.freeze(["hungry", "plasticity"])
+            frozen = Disposition.random(random.Random(11))
+            child = frozen.vary(random.Random(12))
+        finally:
+            mind_module.freeze([])
+        self.assertEqual((frozen.hungry, frozen.plasticity), (0.0, 0.0))
+        self.assertEqual((child.hungry, child.plasticity), (0.0, 0.0))
+        for name in ("novelty", "echo", "kin", "bold", "hurt", "heat"):
+            self.assertEqual(getattr(free, name), getattr(frozen, name), name)
+        with self.assertRaises(ValueError):
+            mind_module.freeze(["courage"])
 
     def test_children_vary_and_carry(self):
         teachers = default_teachers(2)
@@ -278,6 +295,58 @@ class Tendencies(unittest.TestCase):
         self.assertEqual(first.payload["parent"], parent.id)
         self.assertEqual(first.payload["parent_chain"], parent.ledger[-1].hash)
         self.assertTrue(is_coined(child.id))
+
+
+class FeltBody(unittest.TestCase):
+    def picks(self, disposition, energy=None, life=None, space=None, n=5):
+        ledger, channel = Ledger(), Channel()
+        mind = Mind(ledger, channel, [], random.Random(0), disposition)
+        if energy is not None:
+            mind.body.energy = energy
+        if life is not None:
+            mind.body.life = life
+        space = space or two_form_space()
+        mind.enter(space)
+        obs = space.perceive()
+        return {mind.choose(obs, mind.notice(obs, 1))[0] for _ in range(n)}
+
+    def test_hunger_is_weighed_and_no_sign_is_given(self):
+        acts = self.picks(Disposition(**{**NEUTRAL, "hungry": +1.0}), energy=1.0)
+        self.assertNotIn("rest", acts, "hungry and drawn to act")
+        rests = self.picks(Disposition(**{**NEUTRAL, "hungry": -1.0}), energy=1.0)
+        self.assertEqual(rests, {"rest"}, "hungry and drawn to rest")
+
+    def test_hurt_is_weighed_and_no_sign_is_given(self):
+        bold = self.picks(Disposition(**{**NEUTRAL, "hurt": +1.0}), life=1.0)
+        self.assertEqual(bold, {"consume"}, "hurt and drawn to consume")
+        shy = self.picks(Disposition(**{**NEUTRAL, "hurt": -1.0}), life=1.0)
+        self.assertNotIn("consume", shy, "hurt and drawn away from consuming")
+
+    def test_consequence_bends_the_tendencies_that_chose(self):
+        for plasticity, grows in ((+0.5, True), (-0.5, False)):
+            ledger, channel = Ledger(), Channel()
+            d = Disposition(**{**NEUTRAL, "bold": 1.0, "plasticity": plasticity})
+            mind = Mind(ledger, channel, [], random.Random(0), d)
+            space = Space([Form("good", (1.0, 1.0), +0.8), Form("bad", (-1.0, -1.0), -0.8)], dims=2, label="t")
+            mind.enter(space)
+            obs = space.perceive()
+            act, fid = mind.choose(obs, mind.notice(obs, 1))
+            self.assertEqual(act, "consume")
+            exp, _ = mind.act(space, act, fid, dict(obs)[fid], 1)
+            account = mind.bend(exp.valence)
+            self.assertTrue(account, "something was bent")
+            bent = mind.disposition.bold
+            self.assertEqual(bent > 1.0, (exp.valence > 0) == grows, f"plasticity {plasticity:+}")
+            self.assertEqual(mind.nature, d, "the nature is never bent")
+
+    def test_children_inherit_the_nature_not_the_bent_self(self):
+        teachers = default_teachers(2)
+        parent = Being.found("w", 0, 0, teachers)
+        parent.mind.disposition = Disposition(**{**parent.mind.nature.to_dict(), "bold": 2.9})
+        child = parent.beget("w", 1, 1, teachers)
+        self.assertEqual(child.mind.disposition, child.mind.nature, "born unbent")
+        self.assertLess(abs(child.mind.nature.bold - parent.mind.nature.bold), 1.0)
+        self.assertGreater(abs(child.mind.nature.bold - 2.9), 1.0, "what life bent is not passed on")
 
 
 def lethal_builder(b):

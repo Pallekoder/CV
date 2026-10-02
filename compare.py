@@ -16,6 +16,7 @@ import argparse
 import random
 import time
 
+from core import mind as mind_module
 from core.being import Being
 from core.many import World
 from core.teachers import default_teachers
@@ -40,20 +41,36 @@ def acts_since(beings, before) -> tuple:
     return consumes, negative, touches, negative_touches
 
 
-def trial(group, seed, law, ticks) -> dict:
+def drift(beings) -> float:
+    """How far life has bent the living from what they were born as."""
+    if not beings:
+        return 0.0
+    total = 0.0
+    for b in beings:
+        total += sum(abs(getattr(b.mind.disposition, k) - getattr(b.mind.nature, k))
+                     for k in b.mind.disposition.BENDABLE) / len(b.mind.disposition.BENDABLE)
+    return total / len(beings)
+
+
+def trial(group, seed, law, ticks, energy=None) -> dict:
     lost = gathered = 0.0
-    alive = consumes = negative = 0
+    alive = consumes = negative = acts = ticks_lived = 0
     for i, b in enumerate(group):
         space = build("scatter", random.Random(f"trial:{seed}:{i}"), law)
         b.mind.enter(space)
+        if energy is not None:
+            b.mind.body.energy = energy
         start = len(b.ledger)
         for _ in range(ticks):
             b.mind.tick(space)
             if not b.alive:
                 break
         for e in b.ledger.since(start):
+            if e.kind == "notice":
+                ticks_lived += 1
             if e.kind != "act":
                 continue
+            acts += 1
             v = e.payload["valence"]
             lost += -v if v < 0 else 0.0
             gathered += v if v > 0 else 0.0
@@ -63,13 +80,15 @@ def trial(group, seed, law, ticks) -> dict:
         alive += b.alive
     n = len(group)
     return {"n": n, "alive": alive, "lost": lost / n, "gathered": gathered / n,
-            "consumes": consumes, "negative": negative}
+            "consumes": consumes, "negative": negative, "acts": acts / n,
+            "rests": (ticks_lived - acts) / n, "drift": drift(group)}
 
 
 def describe(name: str, r: dict) -> str:
     share = 100 * r["negative"] / max(1, r["consumes"])
-    return (f"  {name:<22} alive {r['alive']:2d}/{r['n']}   life lost to negatives {r['lost']:.2f} each   "
-            f"positive valence gathered {r['gathered']:.2f} each   negative consumes {r['negative']}/{r['consumes']} ({share:.0f}%)")
+    return (f"  {name:<28} alive {r['alive']:2d}/{r['n']}   life lost {r['lost']:.2f}   gathered {r['gathered']:.2f}   "
+            f"negative consumes {r['negative']}/{r['consumes']} ({share:.0f}%)   "
+            f"acts {r['acts']:.1f}  rests {r['rests']:.1f}   bent {r['drift']:.2f}")
 
 
 def main(argv=None) -> int:
@@ -79,7 +98,10 @@ def main(argv=None) -> int:
     ap.add_argument("--generations", type=int, default=20)
     ap.add_argument("--ticks", type=int, default=60)
     ap.add_argument("--first-ticks", type=int, default=12)
+    ap.add_argument("--frozen", default="", help="tendencies held at zero, comma-separated, e.g. hungry,hurt,plasticity")
     args = ap.parse_args(argv)
+    frozen = [n for n in args.frozen.split(",") if n]
+    mind_module.freeze(frozen)
 
     t0 = time.time()
     teachers = default_teachers(DIMS)
@@ -87,7 +109,7 @@ def main(argv=None) -> int:
     world.found(args.beings)
     law = law_for(args.seed, DIMS)
     print(f"seed {args.seed}: {args.beings} beings, {args.generations} generations; "
-          f"law, hidden from them: {law.describe()}")
+          f"law, hidden from them: {law.describe()}" + (f"; frozen at zero: {', '.join(frozen)}" if frozen else ""))
     print("  gen  survived  died   consumes  negative   touches  negative")
     for _ in range(args.generations):
         g = world.generation
@@ -108,12 +130,25 @@ def main(argv=None) -> int:
     if not living:
         print("no one is left to compare.")
         return 1
-    children = [b.beget(args.seed, 99, i, teachers) for i, b in enumerate(living)]
-    strangers = [Being.found(f"strangers{args.seed}", 99, i, teachers) for i in range(len(living))]
     print()
-    print(f"one generation in identical fresh shells, {len(living)} of each:")
+    print("  among the living, signs of what they were born with:")
+    for name in ("echo", "kin", "bold", "novelty", "hungry", "hurt", "plasticity"):
+        values = [getattr(b.mind.nature, name) for b in living]
+        print(f"    {name:<10} +{sum(1 for v in values if v > 0):2d} / -{sum(1 for v in values if v < 0):2d}"
+              f"   mean {sum(values) / len(values):+.2f}")
+    print(f"  bent by life so far, mean over the living: {drift(living):.2f}")
+
+    n = len(living)
+    children = [b.beget(args.seed, 99, i, teachers) for i, b in enumerate(living)]
+    hungry_children = [b.beget(args.seed, 99, 1000 + i, teachers) for i, b in enumerate(living)]
+    strangers = [Being.found(f"strangers{args.seed}", 99, i, teachers) for i in range(n)]
+    hungry_strangers = [Being.found(f"hungry-strangers{args.seed}", 99, i, teachers) for i in range(n)]
+    print()
+    print(f"one generation in identical fresh shells, {n} of each (hungry: born with a quarter of the energy):")
     print(describe("children of survivors", trial(children, args.seed, law, args.ticks)))
     print(describe("strangers", trial(strangers, args.seed, law, args.ticks)))
+    print(describe("children of survivors, hungry", trial(hungry_children, args.seed, law, args.ticks, energy=1.5)))
+    print(describe("strangers, hungry", trial(hungry_strangers, args.seed, law, args.ticks, energy=1.5)))
     print(f"({time.time() - t0:.0f}s)")
     return 0
 

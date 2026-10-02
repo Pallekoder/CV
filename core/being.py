@@ -1,8 +1,9 @@
 """One being: a ledger, a channel, a mind, and where it came from.
 
 A being is founded with tendencies drawn at random, or begotten by a living
-parent with the parent's tendencies varied and the parent's lived material
-carried over. Its ledger is its own chain from birth. A child's first entry
+parent with the parent's inborn tendencies varied and the parent's lived
+material carried over. What life bent in the parent is not inherited; what
+the parent lived is. Its ledger is its own chain from birth. A child's first entry
 names its parent's chain, so the generations link by hash.
 """
 from __future__ import annotations
@@ -56,7 +57,7 @@ class Being:
         rng = random.Random(f"being:{world_seed}:{bid}")
         ledger = Ledger()
         channel = Channel.from_dict(self.channel.to_dict())
-        mind = Mind(ledger, channel, teachers, rng, self.mind.disposition.vary(rng))
+        mind = Mind(ledger, channel, teachers, rng, self.mind.nature.vary(rng))
         mind.perspectives = list(self.mind.perspectives)
         mind.puzzles = list(self.mind.puzzles)
         mind._considered_at = self.mind._considered_at
@@ -87,6 +88,6 @@ class Being:
         channel = Channel.from_dict(d["channel"])
         rng = random.Random()
         rng.setstate(_state_in(d["rng"]))
-        mind = Mind(ledger, channel, teachers, rng, Disposition.from_dict(d["mind"]["disposition"]))
+        mind = Mind(ledger, channel, teachers, rng, Disposition.from_dict(d["mind"].get("nature", d["mind"]["disposition"])))
         mind.restore(d["mind"])
         return cls(d["id"], d["born"], d["parent"], ledger, channel, mind)

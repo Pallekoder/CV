@@ -11,10 +11,14 @@ What it does each tick, in order:
             always its first outward act.
   choose    weigh every possible act by its tendencies and draw one. The
             tendencies are heritable, and every one of them may be negative
-            at birth: a mind can be born drawn toward what hurt it. Nothing
+            at birth: a mind can be born drawn toward what hurt it. Two of
+            them read the body: how hungry it is and how hurt. Nothing
             here says which way is right. The body's physics, and whether
             the mind is still around later, are the only judges.
   act       touch or consume, and live the consequence. Loss is permanent.
+  bend      let what was just lived bend the tendencies that chose it, by
+            an inherited amount whose sign is random at birth. The ledger
+            never holds the why; the body is bent by it anyway.
   utter     when something surprises it, emit a coined sound. The sound is
             written down. The state that produced it is not.
   consider  ask the teachers, keep their perspectives, and test their
@@ -47,8 +51,11 @@ STARVE = 0.3         # life lost per tick spent with no energy
 ENERGY_GAIN = 4.0    # energy per unit of positive valence
 COST = {"touch": 0.5, "consume": 1.0, "rest": 0.0}
 
-ECHO_SCALE = 0.3     # how far away a lived consequence is still felt
+ECHO_SCALE = 0.3     # how far away a lived consequence still echoes
 VARIATION = 0.15     # how far a child's tendencies drift from its parent's
+BOUND = 3.0          # how far a tendency can be bent within a life
+
+FROZEN: frozenset = frozenset()   # tendencies held at zero, for experiments asking what a knob does
 
 MIN_VIEWS = 2        # never carve on a single view
 MIN_SIDE = 2         # a side with fewer lived members cannot be carved
@@ -94,52 +101,91 @@ class Body:
         return cls(life=d["life"], energy=d["energy"])
 
 
+def freeze(names) -> None:
+    """Hold the named tendencies at zero in every mind drawn or begotten from now on.
+
+    The random draws still happen, so a frozen world and a free world with
+    the same seed share every other tendency of every being: only the
+    frozen knobs differ. That is what makes the two comparable.
+    """
+    global FROZEN
+    unknown = set(names) - set(Disposition.__dataclass_fields__)
+    if unknown:
+        raise ValueError(f"no such tendencies: {sorted(unknown)}")
+    FROZEN = frozenset(names)
+
+
 @dataclass(frozen=True)
 class Disposition:
     """Heritable tendencies. No sign is given for any of them.
 
-    novelty  pull toward (or away from) what has not been lived
-    echo     pull toward (or away from) what nearby consequences felt like
-    kin      pull toward (or away from) what the admitting category felt like
-    bold     pull toward consuming rather than touching
-    heat     how much chance is left in the draw
+    novelty     pull toward (or away from) what has not been lived
+    echo        pull toward (or away from) what consequences near it were
+    kin         pull toward (or away from) what the admitting category's consequences were
+    bold        pull toward consuming rather than touching
+    hungry      when energy is low: pull toward acting at all (or toward resting)
+    hurt        when life is low: pull toward consuming (or away from it)
+    heat        how much chance is left in the draw
+    plasticity  how much, and which way, a lived consequence bends the first four
     """
 
     novelty: float
     echo: float
     kin: float
     bold: float
+    hungry: float
+    hurt: float
     heat: float
+    plasticity: float
+
+    BENDABLE = ("novelty", "echo", "kin", "bold")
 
     @classmethod
     def random(cls, rng: random.Random) -> "Disposition":
-        return cls(
+        d = dict(
             novelty=rng.uniform(-1, 1),
             echo=rng.uniform(-1, 1),
             kin=rng.uniform(-1, 1),
             bold=rng.uniform(-1, 1),
+            hungry=rng.uniform(-1, 1),
+            hurt=rng.uniform(-1, 1),
             heat=rng.uniform(0.05, 0.5),
+            plasticity=rng.uniform(-0.5, 0.5),
         )
+        return cls(**{k: (0.0 if k in FROZEN else v) for k, v in d.items()})
 
     def vary(self, rng: random.Random) -> "Disposition":
-        return Disposition(
-            novelty=self.novelty + rng.gauss(0, VARIATION),
-            echo=self.echo + rng.gauss(0, VARIATION),
-            kin=self.kin + rng.gauss(0, VARIATION),
-            bold=self.bold + rng.gauss(0, VARIATION),
-            heat=max(0.02, self.heat + rng.gauss(0, VARIATION / 2)),
-        )
+        d = {k: v + rng.gauss(0, VARIATION) for k, v in self.to_dict().items()}
+        d["heat"] = max(0.02, self.heat + rng.gauss(0, VARIATION / 2))
+        d["plasticity"] = self.plasticity + rng.gauss(0, VARIATION / 2)
+        return Disposition(**{k: (0.0 if k in FROZEN else v) for k, v in d.items()})
+
+    def bend(self, components: dict, valence: float) -> "Disposition":
+        """What was just lived pulls on the tendencies that chose it.
+
+        With plasticity above zero, a tendency that pointed at something
+        that turned out positive grows, and one that pointed at something
+        that turned out negative shrinks. Below zero, the opposite. Which
+        of those is worth having is not decided here.
+        """
+        d = self.to_dict()
+        for name in self.BENDABLE:
+            c = components.get(name, 0.0)
+            if c:
+                d[name] = max(-BOUND, min(BOUND, d[name] + self.plasticity * valence * c))
+        return Disposition(**d)
 
     def to_dict(self) -> dict:
-        return {"novelty": self.novelty, "echo": self.echo, "kin": self.kin, "bold": self.bold, "heat": self.heat}
+        return {"novelty": self.novelty, "echo": self.echo, "kin": self.kin, "bold": self.bold,
+                "hungry": self.hungry, "hurt": self.hurt, "heat": self.heat, "plasticity": self.plasticity}
 
     @classmethod
     def from_dict(cls, d: dict) -> "Disposition":
         return cls(**d)
 
     def __str__(self) -> str:
-        return (f"nov {self.novelty:+.2f}  echo {self.echo:+.2f}  kin {self.kin:+.2f}  "
-                f"bold {self.bold:+.2f}  heat {self.heat:.2f}")
+        return (f"nov {self.novelty:+.2f} echo {self.echo:+.2f} kin {self.kin:+.2f} bold {self.bold:+.2f} "
+                f"hungry {self.hungry:+.2f} hurt {self.hurt:+.2f} heat {self.heat:.2f} plast {self.plasticity:+.2f}")
 
 
 @dataclass(frozen=True)
@@ -184,7 +230,8 @@ class Mind:
         self.channel = channel
         self.teachers = teachers
         self.rng = rng
-        self.disposition = disposition if disposition is not None else Disposition.random(rng)
+        self.nature = disposition if disposition is not None else Disposition.random(rng)
+        self.disposition = self.nature   # what it is now; life bends this, never the nature
         self.body = Body()
         self.age = 0
         self.perspectives: list[Perspective] = []
@@ -193,6 +240,7 @@ class Mind:
         self.touched: dict = {}       # per-shell working memory: form id -> ledger index
         self._considered_at = 0       # how many lived consequences there were at the last consult
         self._scanned = 0             # how far reflect has read its own ledger
+        self._chosen: dict = {}       # the components behind the last choice, for bend
 
     # -- shells and contacts -------------------------------------------------
 
@@ -242,6 +290,9 @@ class Mind:
                 )
                 if kind == "consume":
                     lines.append(f"  {fid} is gone.")
+                bent = self.bend(exp.valence)
+                if bent:
+                    lines.append("  bends: " + bent)
                 reason = self.surprised(exp, landed, before)
                 if reason:
                     why = (reason, contrasts.summary(), fid, exp.valence, landed)
@@ -307,8 +358,8 @@ class Mind:
 
     # -- choose ------------------------------------------------------------
 
-    def _felt(self, surface: tuple, lived: list) -> tuple:
-        """How new this surface is, and what consequences near it felt like.
+    def _near(self, surface: tuple, lived: list) -> tuple:
+        """How new this surface is, and what consequences near it were.
 
         The echo is a distance-weighted mean of lived consequence, shrunk
         toward nothing when nothing lived is anywhere near.
@@ -326,7 +377,7 @@ class Mind:
         return min(nearest, 1.0), num / (den + 1.0)
 
     def _kin(self, surface: tuple) -> float:
-        """What the category that admits this surface has felt like, if any."""
+        """What the consequences in the category that admits this surface were, if any."""
         for cat in self.channel.categories.values():
             if cat.rule.side(surface) == cat.side:
                 lived = [self.channel.experiences[i].valence for i in cat.members
@@ -338,29 +389,50 @@ class Mind:
         """Weigh every affordable act by the tendencies and draw one.
 
         Resting always scores nothing, so a mind whose tendencies make every
-        act look worse than nothing will rest. Nothing here prefers one sign
-        of consequence over the other; the tendencies decide, and they were
-        drawn at random or inherited.
+        act look worse than nothing will rest. Hunger and hurt are read from
+        the body and weighed like everything else. Nothing here prefers one
+        sign of consequence over the other; the tendencies decide, and they
+        were drawn at random, inherited, or bent by what was lived.
         """
         d = self.disposition
+        hunger = 1.0 - self.body.energy / ENERGY_MAX
+        hurt = 1.0 - self.body.life / LIFE_START
         lived = [(e.features, e.valence) for e in self.channel.experiences.values()
                  if e.features is not None and e.valence is not None]
-        options = [("rest", None, 0.0)]
+        options = [("rest", None, 0.0, {})]
         for fid, surface in obs:
-            novelty, echo = self._felt(surface, lived)
+            novelty, echo = self._near(surface, lived)
             kin = self._kin(surface)
             for act in ("touch", "consume"):
                 if act == "touch" and fid in self.touched:
                     continue
                 if not self.body.can_afford(act):
                     continue
-                score = d.novelty * novelty + d.echo * echo + d.kin * kin + (d.bold if act == "consume" else 0.0)
-                options.append((act, fid, score))
+                consume = 1.0 if act == "consume" else 0.0
+                components = {"novelty": novelty, "echo": echo, "kin": kin, "bold": consume}
+                score = (d.novelty * novelty + d.echo * echo + d.kin * kin + d.bold * consume
+                         + d.hungry * hunger + d.hurt * hurt * consume)
+                options.append((act, fid, score, components))
         heat = max(d.heat, 1e-3)
         top = max(o[2] for o in options)
         weights = [math.exp((o[2] - top) / heat) for o in options]
-        act, fid, _ = self.rng.choices(options, weights=weights, k=1)[0]
+        act, fid, _, components = self.rng.choices(options, weights=weights, k=1)[0]
+        self._chosen = components
         return act, fid
+
+    # -- bend --------------------------------------------------------------
+
+    def bend(self, valence: float) -> str:
+        """Let the consequence just lived bend the tendencies that chose it.
+
+        Returns a short account of the largest change, or an empty string.
+        """
+        before = self.disposition
+        self.disposition = before.bend(self._chosen, valence)
+        self._chosen = {}
+        changes = {k: getattr(self.disposition, k) - getattr(before, k) for k in Disposition.BENDABLE}
+        name, delta = max(changes.items(), key=lambda kv: abs(kv[1]))
+        return f"{name} {delta:+.3f}" if abs(delta) >= 0.005 else ""
 
     # -- act ---------------------------------------------------------------
 
@@ -491,6 +563,7 @@ class Mind:
         return {
             "age": self.age,
             "body": self.body.to_dict(),
+            "nature": self.nature.to_dict(),
             "disposition": self.disposition.to_dict(),
             "perspectives": [p.to_dict() for p in self.perspectives],
             "puzzles": [p.to_dict() for p in self.puzzles],
@@ -502,6 +575,7 @@ class Mind:
     def restore(self, d: dict) -> None:
         self.age = d["age"]
         self.body = Body.from_dict(d["body"])
+        self.nature = Disposition.from_dict(d.get("nature", d["disposition"]))
         self.disposition = Disposition.from_dict(d["disposition"])
         self.perspectives = [Perspective.from_dict(p) for p in d["perspectives"]]
         self.puzzles = [Puzzle(**p) for p in d["puzzles"]]

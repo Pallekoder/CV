@@ -86,7 +86,8 @@ class World:
         living = self.living
         for b in dead:
             self.ledger.append(g, "died", being=b.id, born=b.born, parent=b.parent, age=b.mind.age,
-                               entries=len(b.ledger), chain=b.ledger[-1].hash)
+                               entries=len(b.ledger), chain=b.ledger[-1].hash,
+                               nature=b.mind.nature.to_dict(), bent=b.mind.disposition.to_dict())
             self.sealed.add(b.id)
             if gone_dir is not None:
                 Path(gone_dir).mkdir(parents=True, exist_ok=True)

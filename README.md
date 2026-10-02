@@ -1,13 +1,13 @@
-# The first units
+# Growing minds from almost nothing
 
-A system meant to grow meaning from the bottom up, over many iterations,
-with one hard-coded truth: positives and negatives exist. Everything else
-is left for it to build, revise, and own.
+Read `BRIEF.md` first. It is the project, in the words it was handed over
+in, and the code is measured against it. `NOTEBOOK.md` holds the
+predictions written before each run and what happened instead; the
+surprises there are the point. `DESIGN.md` says how each piece of the
+brief is built, where the build adds things the brief does not ask for,
+and what the brief asks for that is not built yet.
 
-This repository holds the first two units. Unit one is the irreducible
-floor and the first moment. Unit two is the many: a population in which
-consequence decides what is still around. It runs, it is tested, and it is
-small on purpose.
+This file says what exists and how to run it.
 
     python run.py                                 # one mind, the seed space, the first moment
     python run.py --generations 3                 # carry it on through fresh shells
@@ -16,12 +16,28 @@ small on purpose.
     python run.py --god "..."                     # say something to them (rarely answered)
     python run.py --fresh                         # throw the saved world away
     python compare.py --seed 2                    # children of survivors against strangers
+    python compare.py --seed 2 --frozen hungry,hurt,plasticity   # the same, with unit three's knobs held at zero
     python -m unittest -v                         # the tests
 
 The runner prints a transcript written for you, the distant one. The minds
 never see those words; they see numbers, coined syllables, and consequence.
-`DESIGN.md` holds the philosophy, the decisions, and the answers to the
-first review.
+
+## The units so far
+
+**One: the floor and the first moment.** The one truth, an append-only
+ledger, a space of forms with a hidden consequence, the open channel and
+the carving of categories, peer teachers, the rare contact, and the seed:
+contrast, a sound uttered and forgotten, a puzzle held.
+
+**Two: the many.** Tendencies with random signs at birth. A body that
+existing costs. A population in which the dead are sealed and the living
+beget, with nothing ranking them.
+
+**Three: the body enters the choice.** Two more tendencies read hunger and
+injury, and a third lets lived consequence bend the others within a life.
+All three are inherited and unsigned at birth. A control holds them at
+zero so a world with and without them can be compared on the same
+founders and shells.
 
 ## Layout
 
@@ -30,7 +46,7 @@ first review.
       ledger.py      append-only, hash-chained; what happened, happened
       channel.py     the open bucket, and the categories carved out of it
       mind.py        a body, heritable tendencies, and the tick:
-                     upkeep, reflect, notice, choose, act, utter-and-forget, consider
+                     upkeep, reflect, notice, choose, act, bend, utter-and-forget, consider
       teachers.py    peer perspectives; read-only access, never decrees
       god.py         the rare contact; can also throw the shell away
       being.py       a ledger, a channel, a mind, and where it came from
@@ -53,11 +69,12 @@ Fixed, and enforced in code:
   child's first entry names its parent's chain, so generations link by hash.
 - A consumed form is gone. Only its id remains.
 - Life lost, to a negative or to starving, never returns.
-- Every tendency a being is born with may have either sign. A mind can be
-  born drawn toward what hurt it. No preference for positive over negative
-  is coded anywhere, and nothing ranks the living: being alive at the end
-  of a generation is the whole of what it takes to beget, and every
-  survivor is as likely a parent as any other.
+- Every tendency a being is born with may have either sign, including the
+  ones that read the body and the one that bends the others. No preference
+  for positive over negative is coded anywhere. Nothing ranks the living:
+  being alive at the end of a generation is the whole of what it takes to
+  beget, and every survivor is as likely a parent as any other.
+- A child inherits what its parent was born as, never what life bent.
 - Teachers receive a read-only view and return a perspective. They cannot
   carve, dissolve, or write.
 - The distant one is rate-limited. Its words land as a featureless
@@ -70,64 +87,47 @@ Not fixed, and meant to be revised, by you or eventually by the system:
 
 - All magnitudes: starting life and energy, what existing costs, what acting
   costs, how fast starving takes life, how far a consequence echoes, how
-  much a child varies, purity thresholds, the gap between contacts.
-- The shape of the tendencies. Five numbers (novelty, echo, kin, bold,
-  heat) weigh the acts. The five are hand-chosen; their values are not.
+  much a child varies, how far a tendency can bend, purity thresholds, the
+  gap between contacts.
+- The shape of the tendencies. Eight numbers weigh the acts. The eight
+  slots and the bending rule's form are hand-chosen; their values and
+  signs are not.
 - The teachers. Three kinds exist, and they are hand-made.
-- The shells, and the hidden law. See the caveat below.
+- The shells, and the hidden law.
 
-## What a run shows
+## What the runs showed
 
-**The first moment.** In the seed space the mind's first act is noticing: it
-sees two forms that are nearly the same and two that are exactly the same.
-Its first consequence surprises it; it utters a coined sound and writes
-down only the sound. On the next tick it finds that sound in its own ledger
-with no cause anywhere in what it has lived, and holds it as a puzzle. When
-it lives the second of the identical pair and the consequence is opposite,
-that is the paradox, and no teacher can offer a surface rule that survives
-it.
+The full record, with the predictions that preceded each run, is in
+`NOTEBOOK.md`. In short:
 
-**Carving.** Carried into a larger shell, the open bucket fills, a first
-carve along the wrong axis is betrayed and dissolved, and a later carve
-along the law's axis holds. The paradox pair keeps agreement below perfect
-forever. This is a sanity check that the machinery works, not growth: the
-law was put there.
+**The first moment** goes as designed: the first act is noticing the
+identical pair; the first consequence is a surprise; the sound is written
+and the why is not; the next tick finds the sound with no cause and holds
+it as a puzzle; the paradox is lived and no surface rule survives it.
 
-**The many.** Twenty-four beings, twenty generations, each in its own shell.
-Negatives take life. Existing costs energy, and only positives supply it.
-Those whose life runs out are sealed and replaced by children of whoever is
-left, with varied tendencies and the parent's lived material. The share of
-consumes that hit a negative, across the whole population:
+**The many** (unit two, 24 beings, 20 generations, three seeds): the share
+of consumes that hit a negative fell from 42, 43 and 62 percent to 27, 25
+and 9 percent. Children of survivors lost less than half the life that
+strangers lost in identical fresh shells. Nobody told them to avoid harm.
 
-| seed | generation 1 | generation 19 |
-|---|---|---|
-| 0 | 42% | 27% |
-| 1 | 43% | 25% |
-| 2 | 62% | 9% |
+**The body in the choice** (unit three, same setup): hungry children of
+survivors act about twice as much as hungry strangers and survive far
+better. But the harm-avoidance margin is narrower than unit two's in every
+seed, and in one seed the children lose more life than strangers. In one
+seed the bending knob was selected entirely negative and used as a damper,
+winding a being's drives down after each success so it rests before the
+bad forms are all that is left. Richer was not better at the thing that
+mattered. Whether the knobs themselves are the cause is the paired
+experiment recorded in the notebook.
 
-Then one generation in identical fresh shells, children of the survivors
-against the same number of strangers:
+Two things stay true of all of this, and the brief says to keep them in
+view: selection is not choosing, and richness is not experience. The
+lineages that avoid harm were not told to and do not know that they do.
 
-| seed | life lost to negatives, each | still alive |
-|---|---|---|
-| 0 | 1.50 vs 3.68 | 24/24 vs 16/24 |
-| 1 | 2.70 vs 3.33 | 23/24 vs 22/24 |
-| 2 | 0.87 vs 4.30 | 24/24 vs 10/24 |
+## What the brief asks for that is not built
 
-Nobody told them to avoid harm. The ones who did not are not around, and
-their children carry what the survivors had. `python compare.py --seed N`
-reproduces each row in under a minute.
-
-Two honest caveats. The children carry the parent's channel as well as its
-tendencies, so this compares lineages with strangers, not tendencies alone.
-And with twenty-four beings a single family often takes over the population
-within ten generations, so which particular tendency values the survivors
-end up with differs from seed to seed. What is consistent across seeds is
-the behaviour, not the numbers behind it.
-
-## What this does not do
-
-It does not learn within a life; only lineages change. It does not name its
-puzzles or its categories in any way you can read. It has one hidden law
-per world, hand-made teachers, separate shells for each being, and no way
-to change its own code. Those are next, and `DESIGN.md` says which first.
+- The channel defines its own dimensions of experience. Here the axes are
+  still the shell's; the system carves along them but does not make them.
+- The puzzle is held, not worked on. Nothing yet tries to account for the
+  forgotten sound.
+- The late game: a flood of raw knowledge dropped on a grown system.

@@ -115,7 +115,8 @@ def main(argv=None) -> int:
             print("  no one was left." + (" the world begins again from strangers." if many else ""))
         living = world.living
         if many and living:
-            print("  among the living: " + ", ".join(signs(living, n) for n in ("echo", "kin", "bold", "novelty")))
+            print("  among the living: " + ", ".join(
+                signs(living, n) for n in ("echo", "kin", "bold", "novelty", "hungry", "hurt", "plasticity")))
         history.append((g, len(report["living"]), len(report["died"]),
                         sum(1 for b in living if b.mind.disposition.echo > 0),
                         sum(1 for b in living if b.mind.disposition.echo < 0),
