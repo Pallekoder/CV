@@ -1,0 +1,25 @@
+# Render blueprint: New, then Blueprint, then this repository. Free plan.
+# The world keeps itself on a Hugging Face dataset, because a free
+# instance's disk is wiped when it restarts; Render asks you for the two
+# secrets below when you create the service.
+services:
+  - type: web
+    name: the-world
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: WORLD_LAW
+        value: corner
+      - key: WORLD_BEINGS
+        value: "12"
+      - key: WORLD_SPEED
+        value: "4"
+      - key: HF_REPO
+        value: zlatkokoder/the-world-state
+      - key: HF_SYNC_SECONDS
+        value: "120"
+      - key: HF_TOKEN
+        sync: false
+      - key: WORLD_TOKEN
+        sync: false

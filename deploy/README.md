@@ -4,27 +4,34 @@ The world runs inside `serve.py` for as long as that process runs and
 saves itself at the end of every generation. To keep it running when no
 machine of yours is on, put it on a server. Four ways; the first is free.
 
-## Hugging Face Spaces (free, no card, from a phone)
+## Render, free, no card, from a phone
 
-A free Space runs the container around the clock. Its disk is wiped when
-it restarts, so the world keeps itself in a private dataset repository on
-the same account: pulled on start, pushed every couple of minutes and on
-shutdown. A free Space sleeps after two days without a visitor and wakes
-on the next visit, picking up where it was; a free uptime monitor that
-opens the page every few minutes keeps it awake for good.
+Render's free plan runs a Docker container with no card on file. Two
+limits, both handled. A free instance's disk is wiped when it restarts,
+so the world keeps itself in a private Hugging Face dataset (free): pulled
+on start, pushed every couple of minutes and on shutdown. And a free
+instance spins down after fifteen minutes without a visitor and takes
+about a minute to wake; a free uptime monitor that opens the page every
+five minutes keeps it awake, and the free 750 hours a month cover that.
 
-1. Make a Hugging Face account, then under Settings, Access Tokens, make a
-   token of type Write.
-2. With that token in `HF_TOKEN`, from anywhere with Python:
+1. On huggingface.co, under Settings, Access Tokens, make a token of type
+   Write, and create a private dataset repository to hold the world (or
+   let `deploy/space.py`'s sibling step do it: any name, set it as
+   `HF_REPO` below).
+2. On render.com, sign in with GitHub. **New**, then **Blueprint**, then
+   this repository. Render reads `render.yaml` and asks for two values:
+   `HF_TOKEN` (the token from step 1) and `WORLD_TOKEN` (a passphrase of
+   your choosing; the page asks for it once before it lets you steer).
+3. When the build finishes, open the service's address. To keep it from
+   sleeping, add that address to a free monitor such as UptimeRobot with
+   a five-minute check.
 
-       pip install huggingface_hub
-       python deploy/space.py <your-hf-username> the-world
+## Hugging Face Spaces
 
-   It creates the Space and the dataset, sets the secrets, uploads the
-   code, and prints the page's address and the steering token.
-
-The front matter at the top of `README.md` is what tells a Space how to
-run this repository; leave it in place.
+Docker Spaces need a paid PRO subscription as of October 2026, so this is
+no longer the free path. `deploy/space.py` still works for a PRO account.
+The front matter at the top of `README.md` is what a Space reads; it does
+no harm elsewhere.
 
 ## Fly.io (one small machine, a few dollars a month)
 
