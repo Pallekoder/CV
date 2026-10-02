@@ -37,6 +37,7 @@ class World:
         self.births = 0
         self.sealed: set = set()        # ids of the dead already recorded
         self.beings: list = []
+        self.options: dict = {}         # shell choices the runner wants kept with the world
 
     @property
     def living(self) -> list:
@@ -129,6 +130,7 @@ class World:
             "generation": self.generation,
             "births": self.births,
             "sealed": sorted(self.sealed),
+            "options": dict(self.options),
             "ledger": self.ledger.to_list(),
             "god": self.god.to_dict(),
             "rng": [version, list(internal), gauss],
@@ -144,6 +146,7 @@ class World:
         world.generation = d["generation"]
         world.births = d["births"]
         world.sealed = set(d["sealed"])
+        world.options = dict(d.get("options", {}))
         world.ledger = Ledger.from_list(d["ledger"])
         world.god = God(world.ledger)
         world.god.restore(d["god"])

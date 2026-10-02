@@ -12,6 +12,9 @@ This file says what exists and how to run it.
     python run.py                                 # one mind, the seed space, the first moment
     python run.py --generations 3                 # carry it on through fresh shells
     python run.py --beings 12 --generations 20    # the many
+    python run.py --beings 12 --generations 20 --law corner   # a world whose law needs two cuts
+    python view.py                                # every living being's channel in one row, then growth by generation
+    python view.py --being 3                      # one being: open bucket, category tree, history of carving
     python run.py --watch 3                       # follow one being tick by tick
     python run.py --god "..."                     # say something to them (rarely answered)
     python run.py --fresh                         # throw the saved world away
@@ -39,12 +42,19 @@ All three are inherited and unsigned at birth. A control holds them at
 zero so a world with and without them can be compared on the same
 founders and shells.
 
+**Four: narrowing, and a way to see it.** A category whose members
+disagree can split along another axis into two more specific children; an
+arrival lands in the deepest category that admits it; a cut that no longer
+parts consequence is undone. A `corner` law, positive only when two axes
+both clear a threshold, makes narrowing necessary. `view.py` shows the open
+bucket, each tree, the history of every cut, and growth by generation.
+
 ## Layout
 
     core/            the value-and-consequence core; persists across shells
       valence.py     the one truth: a sign exists. Nothing else.
       ledger.py      append-only, hash-chained; what happened, happened
-      channel.py     the open bucket, and the categories carved out of it
+      channel.py     the open bucket, the categories carved out of it, and their narrowing
       mind.py        a body, heritable tendencies, and the tick:
                      upkeep, reflect, notice, choose, act, bend, utter-and-forget, consider
       teachers.py    peer perspectives; read-only access, never decrees
@@ -57,6 +67,7 @@ founders and shells.
       space.py       forms with an unnamed surface and a hidden consequence
       seed.py        the hidden law, the first moment, a scatter space
     run.py           one run, one or many beings, a transcript
+    view.py          look into the channels: boxes, trees, histories, growth
     compare.py       the experiment: did being around change anything?
     tests/           what the units guarantee
 
@@ -80,7 +91,10 @@ Fixed, and enforced in code:
 - The distant one is rate-limited. Its words land as a featureless
   experience, the same way the mind's own forgotten utterances do.
 - Nothing is carved on one view. Nothing is carved that lived consequence
-  does not support.
+  does not support: a side needs enough lived members, a cut must leave
+  its material purer than it found it, a category is doubted only after it
+  has had its chance to narrow, and a cut whose two sides no longer differ
+  in consequence is undone.
 - Every name the system gives anything is coined from its own state.
 
 Not fixed, and meant to be revised, by you or eventually by the system:
@@ -110,15 +124,24 @@ of consumes that hit a negative fell from 42, 43 and 62 percent to 27, 25
 and 9 percent. Children of survivors lost less than half the life that
 strangers lost in identical fresh shells. Nobody told them to avoid harm.
 
-**The body in the choice** (unit three, same setup): hungry children of
-survivors act about twice as much as hungry strangers and survive far
-better. But the harm-avoidance margin is narrower than unit two's in every
-seed, and in one seed the children lose more life than strangers. In one
-seed the bending knob was selected entirely negative and used as a damper,
-winding a being's drives down after each success so it rests before the
-bad forms are all that is left. Richer was not better at the thing that
-mattered. Whether the knobs themselves are the cause is the paired
-experiment recorded in the notebook.
+**The body in the choice** (unit three): hungry children of survivors
+act about twice as much as hungry strangers and survive far better. On
+harm avoidance, a paired control on six seeds, same founders and shells
+with the knobs held at zero or free, came out about even: children beat
+strangers in 5 of 6 seeds with the knobs and 3 of 6 without, with mean
+margins of +0.82 and +0.90. Unit two's three clean wins were partly the
+luck of its draws. In three of six free worlds the bending knob was
+selected entirely negative and used as a damper: each success winds a
+being's drives down toward rest, so it stops before the bad forms are all
+that is left. Nobody offered it as a damper.
+
+**Narrowing** (unit four, a corner world, 12 beings, 20 generations): the
+first version grew thickets, 46 categories per being and trees nine deep,
+because two agreeing members counted as a pure side. With the sample and
+improvement rules in place the same world grows 7 to 9 categories per
+being, three deep, and in all twelve living beings the top two cuts lie on
+the law's two axes, within 0.02 of its thresholds. The box narrowed to the
+corner. `python view.py --being 0` on such a world shows the tree.
 
 Two things stay true of all of this, and the brief says to keep them in
 view: selection is not choosing, and richness is not experience. The
@@ -127,7 +150,8 @@ lineages that avoid harm were not told to and do not know that they do.
 ## What the brief asks for that is not built
 
 - The channel defines its own dimensions of experience. Here the axes are
-  still the shell's; the system carves along them but does not make them.
+  still the shell's; the system carves and narrows along them but does not
+  make them.
 - The puzzle is held, not worked on. Nothing yet tries to account for the
   forgotten sound.
 - The late game: a flood of raw knowledge dropped on a grown system.

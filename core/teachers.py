@@ -115,7 +115,7 @@ class NearnessTeacher:
     WINDOW = 80  # it only remembers the most recent consequences
 
     def regard(self, view: ChannelView, tick: int) -> Perspective:
-        lived = view.valenced(view.experiences)[-self.WINDOW:]
+        lived = view.valenced(view.open)[-self.WINDOW:]
         best = None
         for i, a in enumerate(lived):
             for b in lived[i + 1:]:
@@ -142,7 +142,11 @@ class NearnessTeacher:
 
 
 class DoubtTeacher:
-    """Looks only at what has already been carved, and asks whether it still holds."""
+    """Looks only at what has already been carved, and asks whether it still holds.
+
+    It looks at the leaves, the categories with nothing narrower beneath
+    them, because that is where the members live.
+    """
 
     id = "doubt"
 
@@ -151,7 +155,7 @@ class DoubtTeacher:
 
     def regard(self, view: ChannelView, tick: int) -> Perspective:
         worst = None
-        for cat in view.categories:
+        for cat in view.leaves:
             members = [view.by_index(i) for i in cat.members]
             p = purity(m for m in members if m is not None)
             if worst is None or p < worst[0]:

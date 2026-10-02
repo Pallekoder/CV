@@ -63,7 +63,8 @@ class Being:
         mind._considered_at = self.mind._considered_at
         ledger.append(0, "born", being=bid, parent=self.id, generation=generation,
                       parent_chain=self.ledger[-1].hash, parent_age=self.mind.age,
-                      carried=len(channel.experiences), disposition=mind.disposition.to_dict())
+                      carried=len(channel.experiences), categories=sorted(channel.categories),
+                      disposition=mind.disposition.to_dict())
         return Being(bid, generation, self.id, ledger, channel, mind)
 
     def lived(self) -> tuple:

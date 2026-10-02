@@ -19,6 +19,7 @@ from core.symbols import SYLLABLES, coin
 from core.teachers import AxisTeacher, default_teachers
 from core.valence import TruthViolation, Valence, assert_truth
 from shell.seed import build, first_moment, law_for, scatter
+from core.channel import purity
 from shell.space import Form, Gone, Space
 
 NEUTRAL = dict(novelty=0.0, echo=0.0, kin=0.0, bold=0.0, hungry=0.0, hurt=0.0, heat=0.001, plasticity=0.0)
@@ -44,6 +45,20 @@ def is_coined(name: str) -> bool:
 
 def dist(a, b):
     return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+
+
+class TheLaw(unittest.TestCase):
+    def test_a_corner_law_needs_two_axes(self):
+        law = law_for(5, 4, "corner")
+        self.assertEqual(law.kind, "corner")
+        self.assertNotEqual(law.axis, law.axis2)
+        space = first_moment(random.Random(5), law)
+        self.assertEqual({f.hidden > 0 for f in space.forms.values()}, {True, False})
+        big = scatter(random.Random(5), law)
+        signs = [f.hidden > 0 for f in big.forms.values()]
+        self.assertLess(sum(signs), len(signs) / 2, "positives are the corner, so rarer")
+        with self.assertRaises(ValueError):
+            law_for(5, 4, "spiral")
 
 
 class TheOneTruth(unittest.TestCase):
@@ -223,21 +238,73 @@ class PeerTeachers(unittest.TestCase):
         self.assertEqual(all_members, set(channel.experiences))
         self.assertEqual(len(ledger.of_kind("carve")), 1)
 
-    def test_category_dissolves_when_consequence_turns(self):
+    def test_a_category_that_can_narrow_narrows(self):
         ledger = Ledger()
         channel = lived_channel(12)
         mind = Mind(ledger, channel, default_teachers(2), random.Random(0))
         mind.consider(1)
         hi = next(c for c in channel.categories.values() if c.side == 1)
         name = hi.name
-        # the world turns: things on the high side now come out negative
+        # part of the high side turns: everything with a low second coordinate comes out negative
         for i in range(8):
-            landed = channel.add(Experience(index=100 + i, tick=2, features=(0.5, 0.1 * i), token="x", valence=-0.6))
+            landed = channel.add(Experience(index=100 + i, tick=2, features=(0.5, -0.9 + 0.05 * i), token="x", valence=-0.6))
             self.assertEqual(landed, name)
         mind.consider(2)
+        self.assertIn(name, channel.categories, "not dissolved")
+        kids = channel.children(name)
+        self.assertEqual(len(kids), 2, "narrowed into two")
+        self.assertEqual(channel.members_of(name), [], "its members moved down")
+        self.assertTrue(all(c.parent == name for c in kids))
+        self.assertTrue(any(purity(channel.members_of(c.name)) >= 0.9 for c in kids), "one child holds")
+        self.assertEqual(len(ledger.of_kind("refine")), 1)
+        self.assertEqual(channel.depth(kids[0].name), 2)
+        # a new arrival lands in the deepest category that admits it
+        landed = channel.add(Experience(index=200, tick=3, features=(0.5, -0.85), token="y", valence=-0.6))
+        self.assertIn(landed, [c.name for c in kids])
+
+    def test_a_category_that_cannot_narrow_dissolves(self):
+        ledger = Ledger()
+        channel = lived_channel(12)
+        mind = Mind(ledger, channel, default_teachers(2), random.Random(0))
+        mind.consider(1)
+        hi = next(c for c in channel.categories.values() if c.side == 1)
+        name = hi.name
+        # every member gets an opposite twin on the very same surface: no line can part them
+        for i, e in enumerate(list(channel.members_of(name))):
+            channel.add(Experience(index=100 + i, tick=2, features=e.features, token="twin", valence=-0.6))
+        mind.consider(2)
         self.assertNotIn(name, channel.categories)
+        self.assertEqual(len(ledger.of_kind("refine")), 0)
         self.assertEqual(len(ledger.of_kind("dissolve")), 1)
         self.assertTrue(ledger.of_kind("utterance"), "a dissolution is a surprise")
+
+    def test_a_cut_that_parts_nothing_is_undone(self):
+        ledger = Ledger()
+        channel = lived_channel(16)
+        mind = Mind(ledger, channel, default_teachers(2), random.Random(0))
+        mind.consider(1)
+        hi = next(c for c in channel.categories.values() if c.side == 1)
+        # a needless cut: both halves of the high side are positive
+        kids = channel.split(Rule(1, 0.0), 2, coin, within=hi.name)
+        self.assertEqual(len(channel.children(hi.name)), 2)
+        channel.add(Experience(index=300, tick=3, features=(0.9, 0.9), token="z", valence=0.5))
+        mind.consider(3)
+        self.assertEqual(channel.children(hi.name), [], "the needless cut is undone")
+        self.assertEqual(len(ledger.of_kind("merge")), 1)
+        self.assertTrue(all(k.name not in channel.categories for k in kids))
+        self.assertGreater(len(channel.members_of(hi.name)), 0, "the members fell back")
+
+    def test_only_childless_categories_dissolve_and_members_fall_to_the_parent(self):
+        channel = lived_channel(12)
+        root_hi, root_lo = channel.split(Rule(0, 0.0), 1, coin)
+        kid_hi, kid_lo = channel.split(Rule(1, 0.0), 2, coin, within=root_hi.name)
+        self.assertEqual(channel.members_of(root_hi.name), [])
+        with self.assertRaises(ValueError):
+            channel.dissolve(root_hi.name)
+        n = len(channel.members_of(kid_hi.name))
+        channel.dissolve(kid_hi.name)
+        self.assertEqual(len(channel.members_of(root_hi.name)), n, "they fall back to the parent")
+        self.assertEqual(sorted(c.name for c in channel.leaves()), sorted([root_lo.name, kid_lo.name]), "the parent still has a child")
 
 
 class Tendencies(unittest.TestCase):

@@ -22,8 +22,10 @@ What it does each tick, in order:
   utter     when something surprises it, emit a coined sound. The sound is
             written down. The state that produced it is not.
   consider  ask the teachers, keep their perspectives, and test their
-            proposals and doubts against lived consequence before carving
-            or dissolving anything.
+            proposals and doubts against lived consequence before carving,
+            narrowing or dissolving anything. A category whose members
+            disagree is offered a chance to narrow before it can be
+            doubted.
 
 Body physics (magnitudes tunable; only the sign of valence is fixed):
 negatives take from `life`, which nothing restores. Positives add to
@@ -58,8 +60,13 @@ BOUND = 3.0          # how far a tendency can be bent within a life
 FROZEN: frozenset = frozenset()   # tendencies held at zero, for experiments asking what a knob does
 
 MIN_VIEWS = 2        # never carve on a single view
-MIN_SIDE = 2         # a side with fewer lived members cannot be carved
-COMMIT_PURITY = 0.8
+CONSULT_MIN = 4      # lived consequences of both signs before the teachers are asked
+MIN_SIDE = 4         # a side with fewer lived members cannot be carved
+COMMIT_PURITY = 0.8  # both sides this pure, and purer together than what they were cut from: carve
+TWO_SIDED_IMPROVEMENT = 0.05
+ONE_SIDED_MIN = 6    # or one side this big ...
+ONE_SIDED_PURITY = 0.9   # ... and this pure ...
+IMPROVEMENT = 0.15       # ... and this much purer than the scope it is carved from
 DOUBT_PURITY = 0.75
 SAME = 1e-9
 
@@ -377,13 +384,12 @@ class Mind:
         return min(nearest, 1.0), num / (den + 1.0)
 
     def _kin(self, surface: tuple) -> float:
-        """What the consequences in the category that admits this surface were, if any."""
-        for cat in self.channel.categories.values():
-            if cat.rule.side(surface) == cat.side:
-                lived = [self.channel.experiences[i].valence for i in cat.members
-                         if self.channel.experiences[i].valence is not None]
-                return sum(lived) / len(lived) if lived else 0.0
-        return 0.0
+        """What the consequences were in the most specific category that admits this surface."""
+        name = self.channel.locate(surface)
+        if name is None:
+            return 0.0
+        lived = [e.valence for e in self.channel.members_of(name) if e.valence is not None]
+        return sum(lived) / len(lived) if lived else 0.0
 
     def choose(self, obs: list, c: Contrasts) -> tuple:
         """Weigh every affordable act by the tendencies and draw one.
@@ -487,47 +493,98 @@ class Mind:
         if lived_total == self._considered_at:
             return lines  # nothing new has been lived; nothing new to ask about
         self._considered_at = lived_total
-        view = self.channel.view()
-        lived_open = view.valenced(view.open)
-        signs = {e.sign for e in lived_open}
-        enough = len(lived_open) >= 2 * MIN_SIDE and len(signs) == 2
-        if not enough and not self.channel.categories:
+
+        stood = [c.name for c in self.channel.leaves()]
+        doubts: list = []
+
+        # a category whose members disagree gets a chance to narrow first
+        for name in stood:
+            lived = [e for e in self.channel.members_of(name) if e.valence is not None]
+            if purity(lived) >= COMMIT_PURITY or len(lived) < 2 * MIN_SIDE or {e.sign for e in lived} != {1, -1}:
+                continue
+            lines += self._consult(t, name, doubts)
+
+        # then the open bucket
+        lines += self._consult(t, None, doubts)
+
+        # doubts fall only on what already stood and still stands unnarrowed
+        for name in dict.fromkeys(doubts):
+            if name not in stood or name not in self.channel.categories or self.channel.children(name):
+                continue
+            pur = purity(self.channel.members_of(name))
+            if pur < DOUBT_PURITY:
+                cat = self.channel.dissolve(name)
+                self.ledger.append(t, "dissolve", name=cat.name, parent=cat.parent,
+                                   purity=round(pur, 3), members=len(cat.members))
+                that = self.utter(t, ("dissolve", cat.name, round(pur, 3)))
+                where = f"into '{cat.parent}'" if cat.parent else "into the open"
+                lines.append(f"  dissolves '{cat.name}' ({pur:.2f}); {len(cat.members)} fall back {where}")
+                lines.append(f'  utters "{that}"   (the why is not kept)')
+            else:
+                lines.append(f"  keeps '{name}' ({pur:.2f})")
+
+        # a cut whose two sides no longer part consequence is undone
+        lines += self._undo_idle_cuts(t, stood)
+        return lines
+
+    def _undo_idle_cuts(self, t: int, stood: list) -> list:
+        """Where both children of a scope lean the same way and agree together,
+        the cut separates nothing; the children fall back into the scope."""
+        lines = []
+        scopes = [None] + [c.name for c in self.channel.categories.values()]
+        for scope in scopes:
+            kids = self.channel.children(scope)
+            if len(kids) != 2 or any(k.name not in stood for k in kids):
+                continue
+            leanings = []
+            for k in kids:
+                lived = [e for e in self.channel.members_of(k.name) if e.sign]
+                if not lived:
+                    break
+                leanings.append(1 if sum(e.sign for e in lived) >= 0 else -1)
+            if len(leanings) != 2 or leanings[0] != leanings[1]:
+                continue
+            together = self.channel.members_of(kids[0].name) + self.channel.members_of(kids[1].name)
+            pur = purity(together)
+            if pur < COMMIT_PURITY:
+                continue
+            for k in kids:
+                self.channel.dissolve(k.name)
+            self.ledger.append(t, "merge", within=scope, names=[k.name for k in kids],
+                               members=len(together), purity=round(pur, 3))
+            where = f"into '{scope}'" if scope else "into the open"
+            lines.append(f"  undoes a cut that parted nothing: '{kids[0].name}' and '{kids[1].name}' "
+                         f"({pur:.2f} together); {len(together)} fall back {where}")
+        return lines
+
+    def _consult(self, t: int, within: Optional[str], doubts: list) -> list:
+        """Ask every teacher about one scope and carve it if consequence allows."""
+        lines = []
+        view = self.channel.view(within)
+        lived = view.valenced(view.open)
+        enough = len(lived) >= CONSULT_MIN and {e.sign for e in lived} == {1, -1}
+        if not enough and not view.categories and not view.leaves:
             return lines
 
         views = [tr.regard(view, t) for tr in self.teachers]
         self.perspectives.extend(views)
         for p in views:
             self.ledger.append(
-                t, "perspective", source=p.source,
+                t, "perspective", source=p.source, scope=within,
                 proposal=p.proposal.to_dict() if p.proposal else None, doubt=p.doubt,
             )
+            if p.doubt:
+                doubts.append(p.doubt)
+        where = f"within '{within}'" if within else "in the open"
         n_prop = sum(1 for p in views if p.proposal)
-        n_doubt = sum(1 for p in views if p.doubt)
-        lines.append(f"  consult {len(views)} teachers: {n_prop} proposals, {n_doubt} doubts")
+        lines.append(f"  consult {len(views)} teachers {where}: {n_prop} proposals, "
+                     f"{sum(1 for p in views if p.doubt)} doubts")
         for p in views:
             lines.append(f"    {p.source}: {p.remark}")
 
-        # doubts: dissolve only what consequence no longer supports
-        for p in views:
-            if p.doubt and p.doubt in self.channel.categories:
-                members = self.channel.members_of(p.doubt)
-                pur = purity(members)
-                if pur < DOUBT_PURITY:
-                    cat = self.channel.dissolve(p.doubt)
-                    self.ledger.append(t, "dissolve", name=cat.name, purity=round(pur, 3), members=len(cat.members))
-                    that = self.utter(t, ("dissolve", cat.name, round(pur, 3)))
-                    lines.append(f"  dissolves '{cat.name}' ({pur:.2f}); {len(cat.members)} fall back into the open")
-                    lines.append(f'  utters "{that}"   (the why is not kept)')
-                else:
-                    lines.append(f"  keeps '{p.doubt}' ({pur:.2f})")
-
-        # proposals: carve only what consequence supports, and never on one view
-        if len(views) < MIN_VIEWS:
+        if len(views) < MIN_VIEWS or not enough:
             return lines
-        view = self.channel.view()
-        lived_open = view.valenced(view.open)
-        if len(lived_open) < 2 * MIN_SIDE or {e.sign for e in lived_open} != {1, -1}:
-            return lines
+        scope_purity = purity(lived)
         best = None
         seen = set()
         for p in views:
@@ -535,25 +592,37 @@ class Mind:
             if r is None or r in seen:
                 continue
             seen.add(r)
-            hi = [e for e in lived_open if r.side(e.features) == 1]
-            lo = [e for e in lived_open if r.side(e.features) == -1]
-            if len(hi) < MIN_SIDE or len(lo) < MIN_SIDE:
+            hi = [e for e in lived if r.side(e.features) == 1]
+            lo = [e for e in lived if r.side(e.features) == -1]
+            if min(len(hi), len(lo)) < MIN_SIDE:
                 continue
-            score = min(purity(hi), purity(lo))
-            if score >= COMMIT_PURITY and (best is None or score > best[0]):
-                best = (score, p)
+            ph, pl = purity(hi), purity(lo)
+            together = (len(hi) * ph + len(lo) * pl) / (len(hi) + len(lo))
+            if min(ph, pl) >= COMMIT_PURITY and together - scope_purity >= TWO_SIDED_IMPROVEMENT:
+                score = (2, min(ph, pl), max(ph, pl))
+            else:
+                pure_side, pp = (hi, ph) if ph >= pl else (lo, pl)
+                if len(pure_side) >= ONE_SIDED_MIN and pp >= ONE_SIDED_PURITY and pp - scope_purity >= IMPROVEMENT:
+                    score = (1, pp, min(ph, pl))
+                else:
+                    continue
+            if best is None or score > best[0]:
+                best = (score, p, ph, pl)
         if best is None:
-            lines.append("  nothing carved: no view survives consequence")
+            lines.append(f"  nothing carved {where}: no view survives consequence")
             return lines
-        score, p = best
-        cats = self.channel.split(p.proposal, t, coin)
+        score, p, ph, pl = best
+        cats = self.channel.split(p.proposal, t, coin, within)
+        kind = "refine" if within else "carve"
         self.ledger.append(
-            t, "carve", rule=p.proposal.to_dict(), names=[c.name for c in cats],
-            sizes=[len(c.members) for c in cats], purity=round(score, 3), after=p.source,
+            t, kind, within=within, rule=p.proposal.to_dict(), names=[c.name for c in cats],
+            sizes=[len(c.members) for c in cats], purities=[round(ph, 3), round(pl, 3)],
+            depth=self.channel.depth(cats[0].name), after=p.source,
         )
+        verb = f"narrows '{within}'" if within else "carves the open"
         lines.append(
-            f"  carves the open along axis {p.proposal.axis} at {p.proposal.threshold:.3f} "
-            f"(after {p.source}, {score:.2f}): " + ", ".join(f"'{c.name}' x{len(c.members)}" for c in cats)
+            f"  {verb} along axis {p.proposal.axis} at {p.proposal.threshold:.3f} (after {p.source}): "
+            + ", ".join(f"'{c.name}' x{len(c.members)} ({pu:.2f})" for c, pu in zip(cats, (ph, pl)))
         )
         return lines
 

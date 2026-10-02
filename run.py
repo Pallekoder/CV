@@ -18,11 +18,11 @@ import random
 import sys
 from pathlib import Path
 
-from core.channel import purity
 from core.many import World
 from core.persist import load, save
 from core.teachers import default_teachers
-from shell.seed import build, law_for
+from shell.seed import LAW_KINDS, build, law_for
+from view import describe_being
 
 DIMS = 4
 STATE = Path("state") / "world.json"
@@ -54,6 +54,8 @@ def main(argv=None) -> int:
     ap.add_argument("--ticks", type=int, default=60, help="ticks per generation")
     ap.add_argument("--first-ticks", type=int, default=12, help="ticks in the seed space")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--law", choices=LAW_KINDS, default=None,
+                    help="the hidden law of a new world: 'axis' (one cut) or 'corner' (two cuts at once); default axis")
     ap.add_argument("--god", default=None, help="something to say to them")
     ap.add_argument("--watch", type=int, default=None, help="print one being's ticks (default: the only one)")
     ap.add_argument("--fresh", action="store_true", help="discard any saved world")
@@ -69,6 +71,7 @@ def main(argv=None) -> int:
               f"{len(world.living)} of {len(world.beings)} living, {len(world.ledger)} entries in its record")
     else:
         world = World(args.seed, DIMS, default_teachers(DIMS))
+        world.options["law"] = args.law or "axis"
         world.found(args.beings)
         print(f"a new world. nothing has happened yet. {len(world.beings)} being(s), tendencies drawn at random:")
         for b in world.beings:
@@ -76,7 +79,10 @@ def main(argv=None) -> int:
 
     many = len(world.beings) > 1
     watch = args.watch if args.watch is not None else (None if many else 0)
-    law = law_for(world.seed, world.dims)
+    law_kind = world.options.get("law", "axis")
+    if args.law and args.law != law_kind:
+        print(f"(this world's law is '{law_kind}' and stays so; --law applies to a new world)")
+    law = law_for(world.seed, world.dims, law_kind)
 
     if not world.living:
         print("no one is left. the record remains. use --fresh to begin another world.")
@@ -132,18 +138,7 @@ def main(argv=None) -> int:
             print(f"  {g:3d}  {lived_n:8d}  {died_n:4d}  {ep:5d}  {en:5d}  {ml:9.2f}")
         print()
     if not many:
-        b = world.beings[0]
-        ch = b.channel
-        print(f"channel: {len(ch.experiences)} experiences, {len(ch.open_bucket())} open, {len(ch.categories)} categories")
-        for name, cat in ch.categories.items():
-            members = ch.members_of(name)
-            lived = [e for e in members if e.valence is not None]
-            mean = sum(e.valence for e in lived) / len(lived) if lived else 0.0
-            print(f"  '{name}': axis {cat.rule.axis} {'>=' if cat.side > 0 else '< '} {cat.rule.threshold:.3f}, "
-                  f"{len(members)} members, agreement {purity(members):.2f}, mean {mean:+.3f}")
-        print(f"puzzles: {len(b.mind.puzzles)}")
-        for p in b.mind.puzzles:
-            print(f'  "{p.token}" (about #{p.about}, found at tick {p.tick})')
+        print("\n".join(describe_being(world.beings[0])))
     chains = all(b.ledger.verify() for b in world.beings)
     print(f"world record: {len(world.ledger)} entries, chain {'intact' if world.ledger.verify() else 'BROKEN'}; "
           f"beings' chains {'intact' if chains else 'BROKEN'}")

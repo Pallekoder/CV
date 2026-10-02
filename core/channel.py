@@ -1,13 +1,17 @@
 """The open channel.
 
 Every lived thing lands here first, in a single nameless bucket. The system
-may carve named categories out of that bucket, revise them, and dissolve them
-back. No category exists before the system makes one, and every category name
-is coined by the system from its own state.
+may carve named categories out of that bucket, narrow a category into more
+specific ones when consequence inside it disagrees, revise them, and
+dissolve them back. No category exists before the system makes one, and
+every category name is coined by the system from its own state.
 
-Categories are rules, not labels: a category is "the experiences on this side
-of this threshold on this axis". That keeps them editable and testable
-against consequence.
+Categories are rules, not labels: a category is "the experiences on this
+side of this threshold on this axis", within its parent's category if it
+has one. That keeps them editable and testable against consequence, and it
+lets them narrow: a category whose members disagree can be split along
+another axis into two children. An experience lives in the deepest
+category whose chain of rules admits it.
 """
 from __future__ import annotations
 
@@ -82,10 +86,17 @@ class Category:
     rule: Rule
     side: int
     born: int
+    parent: Optional[str] = None
     members: set = field(default_factory=set)
 
     def admits(self, exp: Experience) -> bool:
-        return exp.features is not None and self.rule.side(exp.features) == self.side
+        return exp.features is not None and self.admits_surface(exp.features)
+
+    def admits_surface(self, surface: tuple) -> bool:
+        return self.rule.side(surface) == self.side
+
+    def describe_rule(self) -> str:
+        return f"axis {self.rule.axis} {'>=' if self.side > 0 else '< '} {self.rule.threshold:+.3f}"
 
     def to_dict(self) -> dict:
         return {
@@ -93,6 +104,7 @@ class Category:
             "rule": self.rule.to_dict(),
             "side": self.side,
             "born": self.born,
+            "parent": self.parent,
             "members": sorted(self.members),
         }
 
@@ -103,6 +115,7 @@ class Category:
             rule=Rule.from_dict(d["rule"]),
             side=d["side"],
             born=d["born"],
+            parent=d.get("parent"),
             members=set(d["members"]),
         )
 
@@ -114,15 +127,27 @@ class CategorySnapshot:
     side: int
     born: int
     members: tuple
+    parent: Optional[str]
+    leaf: bool
+    depth: int
 
 
 @dataclass(frozen=True)
 class ChannelView:
-    """Read-only view handed to teachers. They can look; they cannot touch."""
+    """Read-only view handed to teachers. They can look; they cannot touch.
+
+    `open` is the direct material of the scope being looked at: the open
+    bucket itself, or the direct members of one category when the question
+    is whether that category can be narrowed. `categories` are the scope's
+    children; `leaves` are every category in the whole channel that has no
+    children.
+    """
 
     experiences: tuple
     open: tuple
     categories: tuple
+    leaves: tuple = ()
+    scope: Optional[str] = None
     lookup: Mapping = field(default_factory=lambda: MappingProxyType({}))
 
     def valenced(self, source: Iterable[Experience]) -> tuple:
@@ -146,20 +171,56 @@ class Channel:
         self.experiences: dict[int, Experience] = {}
         self.categories: dict[str, Category] = {}
 
+    # -- structure ---------------------------------------------------------
+
+    def children(self, name: Optional[str]) -> list:
+        return [c for c in self.categories.values() if c.parent == name]
+
+    def leaves(self) -> list:
+        parents = {c.parent for c in self.categories.values() if c.parent is not None}
+        return [c for c in self.categories.values() if c.name not in parents]
+
+    def depth(self, name: str) -> int:
+        d = 0
+        while name is not None:
+            d += 1
+            name = self.categories[name].parent
+        return d
+
+    def chain(self, name: str) -> list:
+        out = []
+        while name is not None:
+            cat = self.categories[name]
+            out.append(cat)
+            name = cat.parent
+        return list(reversed(out))
+
+    def locate(self, surface: tuple) -> Optional[str]:
+        """The deepest category whose chain of rules admits this surface."""
+        node = None
+        candidates = self.children(None)
+        while True:
+            nxt = next((c for c in candidates if c.admits_surface(surface)), None)
+            if nxt is None:
+                return node
+            node = nxt.name
+            candidates = self.children(node)
+
     # -- arrivals ----------------------------------------------------------
 
     def add(self, exp: Experience) -> Optional[str]:
-        """Add an experience; place it in an existing category if one admits it.
+        """Add an experience; place it in the deepest category that admits it.
 
         Returns the name of the category it landed in, or None for the open
         bucket.
         """
         self.experiences[exp.index] = exp
-        for cat in self.categories.values():
-            if cat.admits(exp):
-                cat.members.add(exp.index)
-                return cat.name
-        return None
+        if exp.features is None:
+            return None
+        name = self.locate(exp.features)
+        if name is not None:
+            self.categories[name].members.add(exp.index)
+        return name
 
     # -- reading -----------------------------------------------------------
 
@@ -173,8 +234,19 @@ class Channel:
         taken = self.categorized_indices()
         return [e for i, e in sorted(self.experiences.items()) if i not in taken]
 
+    def direct(self, scope: Optional[str]) -> list:
+        """The open bucket, or one category's direct members."""
+        return self.open_bucket() if scope is None else self.members_of(scope)
+
     def members_of(self, name: str) -> list:
         return [self.experiences[i] for i in sorted(self.categories[name].members)]
+
+    def under(self, name: str) -> list:
+        """Every experience in a category or any category beneath it."""
+        out = list(self.members_of(name))
+        for child in self.children(name):
+            out += self.under(child.name)
+        return out
 
     def category_of(self, exp: Experience) -> Optional[str]:
         for cat in self.categories.values():
@@ -182,46 +254,57 @@ class Channel:
                 return cat.name
         return None
 
-    def view(self) -> ChannelView:
+    def _snapshot(self, c: Category, leaf_names: set) -> CategorySnapshot:
+        return CategorySnapshot(
+            name=c.name, rule=c.rule, side=c.side, born=c.born, members=tuple(sorted(c.members)),
+            parent=c.parent, leaf=c.name in leaf_names, depth=self.depth(c.name),
+        )
+
+    def view(self, scope: Optional[str] = None) -> ChannelView:
+        leaf_names = {c.name for c in self.leaves()}
         return ChannelView(
             experiences=tuple(e for _, e in sorted(self.experiences.items())),
-            open=tuple(self.open_bucket()),
-            categories=tuple(
-                CategorySnapshot(
-                    name=c.name,
-                    rule=c.rule,
-                    side=c.side,
-                    born=c.born,
-                    members=tuple(sorted(c.members)),
-                )
-                for c in self.categories.values()
-            ),
+            open=tuple(self.direct(scope)),
+            categories=tuple(self._snapshot(c, leaf_names) for c in self.children(scope)),
+            leaves=tuple(self._snapshot(c, leaf_names) for c in self.leaves()),
+            scope=scope,
             lookup=MappingProxyType(dict(self.experiences)),
         )
 
     # -- carving -----------------------------------------------------------
 
-    def split(self, rule: Rule, tick: int, namer: Callable[..., str]) -> tuple:
-        """Carve the open bucket along a rule into two new categories.
+    def split(self, rule: Rule, tick: int, namer: Callable[..., str], within: Optional[str] = None) -> tuple:
+        """Carve a scope's direct material along a rule into two children.
 
-        Only experiences with features can be carved; featureless ones stay
-        open. Names come from the namer, which the mind supplies.
+        With no scope, the open bucket is carved into two root categories.
+        With a scope, that category's direct members are carved into two
+        children of it, which is how a category narrows. Only experiences
+        with features can be carved; featureless ones stay where they are.
+        Names come from the namer, which the mind supplies.
         """
-        candidates = [e for e in self.open_bucket() if e.features is not None]
+        candidates = [e for e in self.direct(within) if e.features is not None]
         born = []
         for side in (1, -1):
             members = {e.index for e in candidates if rule.side(e.features) == side}
-            name = namer("category", rule.axis, round(rule.threshold, 4), side, tick)
+            name = namer("category", rule.axis, round(rule.threshold, 4), side, tick, within)
             while name in self.categories:
                 name = namer(name, "again")
-            cat = Category(name=name, rule=rule, side=side, born=tick, members=members)
+            cat = Category(name=name, rule=rule, side=side, born=tick, parent=within, members=members)
             self.categories[name] = cat
             born.append(cat)
+        if within is not None:
+            self.categories[within].members -= {e.index for e in candidates}
         return tuple(born)
 
     def dissolve(self, name: str) -> Category:
-        """Remove a category; its members fall back into the open bucket."""
-        return self.categories.pop(name)
+        """Remove a childless category. Its members fall back to its parent,
+        or into the open bucket if it had none."""
+        if self.children(name):
+            raise ValueError(f"'{name}' has children; dissolve them first")
+        cat = self.categories.pop(name)
+        if cat.parent is not None:
+            self.categories[cat.parent].members |= cat.members
+        return cat
 
     # -- persistence -------------------------------------------------------
 

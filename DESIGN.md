@@ -13,7 +13,8 @@ decisions are open.
 | Consequence must be real | `core/ledger.py`, `shell/space.py`, `core/mind.py::Body` | Append-only hash-chained ledger. Consumed forms are deleted and leave only an id. Negatives and starving subtract from `life`, which nothing restores. |
 | The route is selection | `core/many.py`, `core/being.py` | The dead are sealed into the world's record. Their places go to children of the living, chosen uniformly. Nothing scores, ranks, or compares the living. |
 | No imprinted direction | `core/mind.py::Disposition` | Every tendency is drawn with a random sign at birth, including the ones that read the body and the one that bends the rest. |
-| The open channel | `core/channel.py` | One nameless bucket. Categories are rules carved from it, named by coined syllables, tested against consequence, dissolved when they fail. |
+| The open channel | `core/channel.py` | One nameless bucket. Categories are rules carved from it, named by coined syllables, tested against consequence, dissolved when they fail. A category narrows into children along another axis when its members disagree; an arrival lands in the deepest category that admits it. |
+| Seeing the boxes fill and narrow | `view.py` | Per being: the open bucket, the tree with each category's rule, members, agreement and mean, and the history of carving, narrowing, dissolving and undoing. Per world: growth by generation over every being that has lived. |
 | Teachers, never decrees | `core/teachers.py` | Each gets a frozen read-only view and returns a `Perspective`. The mind never carves on one view and never averages: the one proposal consequence supports best is taken, or none. |
 | The distant figure, rare | `core/god.py` | `speak` is refused inside a minimum gap, and the refusal is recorded as silence. Words land as a featureless experience, like the mind's own forgotten sounds. |
 | The seed moment | `shell/seed.py::first_moment`, `core/mind.py::utter`, `::reflect` | Two forms nearly alike and alike in consequence; two identical and opposite. The first ledger entry after entering is `notice`. A surprise is hashed into syllables; the syllables are written; the state is dropped; the next tick finds the sound with no cause and holds it. |
@@ -32,6 +33,17 @@ pays upkeep every tick and only positives supply energy, so starving is
 possible. A `World` holds beings; a generation is one shell each; the dead
 are sealed; the living beget. `compare.py` measures what being around
 changed: children of survivors against strangers in identical shells.
+
+**Unit four** let categories narrow and built the viewer. `consider` now
+offers every category whose members disagree a chance to split before it
+can be doubted, carves the open bucket afterwards, applies doubts only to
+categories that already stood, and finally undoes any cut whose two sides
+lean the same way and agree together. The `corner` law makes a form
+positive only when two axes both clear a threshold, so no single cut sorts
+it. The first corner run grew thickets; a side now needs four lived
+members and a two-sided cut must improve on what it cuts, which is the
+same rule as before, that consequence must support a cut, taken seriously
+at small samples.
 
 **Unit three** let the body into the choice: `hungry` adds to every act
 when energy is low, `hurt` adds to consuming when life is low, and
@@ -79,17 +91,17 @@ each is a place where a direction could have crept in.
 ## What unit three showed, and the rule it illustrates
 
 With the body in the choice, hungry children of survivors act about twice
-as much as hungry strangers and survive far better. But in every seed the
-harm-avoidance margin narrowed against unit two, and in one seed the
-children of survivors lost more life than strangers. In another the
-bending knob was selected entirely negative: each success wound the being's
-drives down toward rest, which protects life late in a shell when the bad
-forms are what is left. A knob offered as learning was used as a damper.
+as much as hungry strangers and survive far better. The first three-seed
+run also showed narrower harm-avoidance margins than unit two, and the
+notebook entry for it concluded that richer was worse. A paired control on
+six seeds, the same founders and shells with the knobs frozen or free,
+then came out about even. The conclusion had been drawn from variance.
 
-The brief's rule applies: never confuse richness with experience. The
-richer mind was not the one that avoided harm better. The paired
-experiment in the notebook asks whether the knobs are the cause or the
-draws are.
+The rule this illustrates is the brief's discipline: predict, run, and let
+the surprise correct you, including the surprise that an earlier surprise
+was noise. One finding survived the control: in three of six free worlds
+the bending knob was selected entirely negative, winding a being's drives
+down after each success. A knob offered as learning was used as a damper.
 
 ## Answers to the first review
 
@@ -108,9 +120,11 @@ draws are.
   two made existing cost more than a perfect forager could gather, so
   starving killed most beings in their first generation and survival was
   luck. The current balance lets a good forager sustain and a bad one not.
-- Carving thresholds: at least two views, at least two lived members per
-  side, at least 0.8 agreement on each side; below 0.75 a doubted category
-  dissolves.
+- Carving thresholds: at least two views; at least four lived members per
+  side and 0.8 agreement on each, purer together than what they were cut
+  from, or one side of six or more at 0.9 that is 0.15 purer than its
+  scope; below 0.75 a doubted category dissolves; two children that lean
+  the same way and agree together at 0.8 are undone.
 - Surprise triggers an utterance: the first consequence ever, a consequence
   that betrays the category it landed in, a twin with opposite sign, and a
   dissolved category.

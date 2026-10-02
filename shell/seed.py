@@ -1,10 +1,15 @@
 """Builders for spaces, and the hidden law they obey.
 
-Every shell built for a given world seed shares one `Law`: a hidden rule that
-says which sign a form's consequence has, from one surface axis. The core is
-never told the law. It can only live it. Each builder also plants a paradox:
-two forms identical on every surface whose consequences are opposite, which
-no surface rule can ever account for.
+Every shell built for a given world seed shares one `Law`: a hidden rule
+that says which sign a form's consequence has, from its surface. The core
+is never told the law. It can only live it. Each builder also plants a
+paradox: two forms identical on every surface whose consequences are
+opposite, which no surface rule can ever account for.
+
+Two kinds of law. `axis`: one threshold on one axis decides the sign.
+`corner`: a form is positive only if it clears thresholds on two axes at
+once. The second cannot be carved in one cut; a category carved on one
+axis will hold both signs until it is narrowed along the other.
 
 `first_moment` is the seed: a space made only of contrast. Two forms nearly
 the same on the surface and nearly the same in consequence (a parallel), and
@@ -21,26 +26,52 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
+from typing import Optional
 
 from core.symbols import coin
 from .space import Form, Space
+
+LAW_KINDS = ("axis", "corner")
 
 
 @dataclass(frozen=True)
 class Law:
     axis: int
     threshold: float
+    axis2: Optional[int] = None
+    threshold2: Optional[float] = None
+
+    @property
+    def kind(self) -> str:
+        return "corner" if self.axis2 is not None else "axis"
+
+    def conditions(self) -> list:
+        out = [(self.axis, self.threshold)]
+        if self.axis2 is not None:
+            out.append((self.axis2, self.threshold2))
+        return out
 
     def sign(self, surface: tuple) -> int:
-        return 1 if surface[self.axis] >= self.threshold else -1
+        return 1 if all(surface[a] >= t for a, t in self.conditions()) else -1
 
     def describe(self) -> str:
-        return f"axis {self.axis} >= {self.threshold:+.3f} is one sign, below it the other"
+        parts = " and ".join(f"axis {a} >= {t:+.3f}" for a, t in self.conditions())
+        return f"{parts} is one sign, anything else the other"
+
+    def to_dict(self) -> dict:
+        return {"axis": self.axis, "threshold": self.threshold, "axis2": self.axis2, "threshold2": self.threshold2}
 
 
-def law_for(seed, dims: int) -> Law:
+def law_for(seed, dims: int, kind: str = "axis") -> Law:
+    if kind not in LAW_KINDS:
+        raise ValueError(f"unknown law kind {kind!r}; choose from {LAW_KINDS}")
     rng = random.Random(f"law:{seed}")
-    return Law(axis=rng.randrange(dims), threshold=round(rng.uniform(-0.3, 0.3), 3))
+    axis = rng.randrange(dims)
+    threshold = round(rng.uniform(-0.3, 0.3), 3)
+    if kind == "axis":
+        return Law(axis=axis, threshold=threshold)
+    axis2 = rng.choice([a for a in range(dims) if a != axis])
+    return Law(axis=axis, threshold=threshold, axis2=axis2, threshold2=round(rng.uniform(-0.3, 0.3), 3))
 
 
 def _vec(rng: random.Random, dims: int) -> tuple:
@@ -62,7 +93,8 @@ def _paradox(rng: random.Random, law: Law, dims: int, magnitude: float) -> list:
 
 def first_moment(rng: random.Random, law: Law, dims: int = 4) -> Space:
     base = list(_vec(rng, dims))
-    base[law.axis] = round(min(1.0, law.threshold + rng.uniform(0.15, 0.6)), 3)
+    for a, t in law.conditions():
+        base[a] = round(min(1.0, t + rng.uniform(0.15, 0.6)), 3)
     base = tuple(base)
     forms = [
         # the parallel: alike on the surface, alike in consequence, obeying the law
@@ -73,7 +105,9 @@ def first_moment(rng: random.Random, law: Law, dims: int = 4) -> Space:
     return Space(forms, dims=dims, label=coin("first", base, law))
 
 
-def scatter(rng: random.Random, law: Law, n: int = 16, dims: int = 4) -> Space:
+def scatter(rng: random.Random, law: Law, n: Optional[int] = None, dims: int = 4) -> Space:
+    if n is None:
+        n = 16 if law.kind == "axis" else 24   # positives are rarer under a corner law
     forms = []
     for i in range(n):
         surface = _vec(rng, dims)

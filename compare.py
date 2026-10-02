@@ -20,7 +20,7 @@ from core import mind as mind_module
 from core.being import Being
 from core.many import World
 from core.teachers import default_teachers
-from shell.seed import build, law_for
+from shell.seed import LAW_KINDS, build, law_for
 
 DIMS = 4
 
@@ -99,6 +99,7 @@ def main(argv=None) -> int:
     ap.add_argument("--ticks", type=int, default=60)
     ap.add_argument("--first-ticks", type=int, default=12)
     ap.add_argument("--frozen", default="", help="tendencies held at zero, comma-separated, e.g. hungry,hurt,plasticity")
+    ap.add_argument("--law", choices=LAW_KINDS, default="axis")
     args = ap.parse_args(argv)
     frozen = [n for n in args.frozen.split(",") if n]
     mind_module.freeze(frozen)
@@ -107,7 +108,7 @@ def main(argv=None) -> int:
     teachers = default_teachers(DIMS)
     world = World(args.seed, DIMS, teachers)
     world.found(args.beings)
-    law = law_for(args.seed, DIMS)
+    law = law_for(args.seed, DIMS, args.law)
     print(f"seed {args.seed}: {args.beings} beings, {args.generations} generations; "
           f"law, hidden from them: {law.describe()}" + (f"; frozen at zero: {', '.join(frozen)}" if frozen else ""))
     print("  gen  survived  died   consumes  negative   touches  negative")

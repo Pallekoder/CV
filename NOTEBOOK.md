@@ -142,4 +142,148 @@ free. The draws are paired, so only the knobs differ.
 4. Free: plasticity ends negative-majority in at least two of six seeds.
 5. Free: hungry ends positive-majority in at least four of six seeds.
 
-**Results.** (to be written after the run)
+**Results.** Children of survivors against strangers, one generation in
+identical fresh shells, life lost each; margin is strangers' loss minus
+children's.
+
+| seed | frozen: margin | free: margin | free: hungry | free: hurt | free: plasticity |
+|---|---|---|---|---|---|
+| 0 | -0.83 | +1.07 | +23/-1 | +17/-7 | +0/-24 |
+| 1 | -0.21 | -1.27 | +7/-17 | +22/-2 | +11/-13 |
+| 2 | +2.73 | +0.58 | +21/-3 | +0/-24 | +24/-0 |
+| 3 | -0.61 | +2.14 | +20/-4 | +24/-0 | +0/-24 |
+| 4 | +2.93 | +1.12 | +2/-22 | +24/-0 | +1/-23 |
+| 5 | +1.40 | +1.27 | +3/-21 | +22/-2 | +14/-10 |
+
+Frozen: children lose less in 3 of 6 seeds, mean margin +0.90. Free: 5 of
+6, mean margin +0.82.
+
+Scored against the predictions:
+
+1. Wrong. Three of six, not five.
+2. Wrong. Five of six, not at most four.
+3. Right by a hair, +0.90 against +0.82, which is nothing.
+4. Right. Plasticity swept negative in seeds 0, 3 and 4.
+5. Wrong. Hungry ended positive-majority in three seeds, not four or more.
+
+**What it means.** The knobs did not narrow the margins. On the same
+founders and the same shells, the two policies come out about even: the
+free one wins more often by less, the frozen one wins bigger and loses
+bigger. Unit two's three clean wins were the luck of three draws, and the
+previous entry's "richer, and worse at the thing that mattered" was a
+conclusion drawn from variance. The lesson is about method, not minds:
+three seeds of twenty-four cannot carry a claim about a knob, and the
+paired control is the cheapest way to find that out. One thing did hold
+up: the damper. Plasticity was selected entirely negative in three of six
+free worlds, each time with the same winding-down behaviour.
+
+## Unit four: narrowing, and a world that needs it
+
+Categories can now narrow: a category whose members disagree is offered a
+chance to split along another axis into two children before it can be
+doubted, and an arrival lands in the deepest category that admits it. A
+new kind of hidden law, `corner`, makes a form positive only if it clears
+thresholds on two axes at once, so no single cut can sort it. `view.py`
+shows the open bucket, the tree, and the history of carving, narrowing and
+dissolving, per being and as growth by generation.
+
+Written before the first corner run: seed 0, 12 beings, 20 generations.
+
+**Predictions.**
+
+1. By generation 10, at least half the living beings hold a tree of depth
+   two or more that is still standing.
+2. In most lineages the first root carve lies along one of the law's two
+   axes.
+3. After generation 5, narrowings average at least one per generation
+   across the population.
+4. The corner world is harsher, since positives are rarer: fewer than 7 of
+   12 survive a generation on average.
+5. Categories per living being settle between 3 and 8.
+6. Somewhere a tree reaches depth 3 by generation 19, from noise or the
+   paradox pair rather than the law, since the law needs only two cuts.
+
+**Results.** Seed 0; the law turned out to be axis 2 >= -0.203 and
+axis 1 >= -0.216.
+
+| generation | survived of 12 | categories per being | deepest | narrowed | dissolved |
+|---|---|---|---|---|---|
+| 1 | 2 | 3.6 | 4 | 9 | 11 |
+| 5 | 1 | 5.2 | 4 | 1 | 0 |
+| 10 | 1 | 21.5 | 7 | 8 | 4 |
+| 15 | 4 | 37.3 | 8 | 15 | 14 |
+| 19 | 8 | 46.6 | 9 | 20 | 14 |
+
+Scored against the predictions:
+
+1. Right. All twelve living hold trees of depth two or more; by generation
+   10 the deepest was seven.
+2. Right at the top. The inherited roots cut axis 2 near -0.40 and the
+   level below cuts axis 1 near -0.45: the law's two axes. No living being
+   carved a root itself; every root was inherited from generation 1.
+3. Right. Narrowings every generation, between 5 and 26.
+4. Right, far beyond what was predicted: one or two of twelve survived
+   most generations until generation 15. One lineage carried the world.
+5. Wrong by an order of magnitude: 46 categories per being.
+6. Right, trivially: depth 9.
+
+**Surprise.** The tree is a thicket. Two members that agree count as a
+pure side, so any four points split two and two along some axis, and
+narrowing runs down into sample noise. The paradox twins, who can never be
+parted, keep every category that holds them impure and so keep inviting
+one more cut. Children inherit the whole thicket. Nothing undoes a cut
+that separates nothing: dissolution only reaches leaves below 0.75
+agreement, and a two-member leaf at 1.00 lives forever. The top of the
+tree found the law; everything under it is noise wearing the law's
+clothes. `view.py --being` shows it plainly, which is what the viewer is
+for.
+
+## Unit four, second run: restraint
+
+Two changes, both of the same kind as the rules already there: a cut must
+be supported by consequence. First, a side now needs at least four lived
+members, and a two-sided cut must leave its material purer than it found
+it. Second, a narrowing whose children no longer part consequence (both
+children lean the same way and together they agree) is undone, and the
+members fall back to the parent. Nothing else changes. Written before the
+rerun of the same corner world: seed 0, 12 beings, 20 generations.
+
+**Predictions.**
+
+1. Categories per living being at generation 19 between 4 and 12.
+2. The deepest tree at generation 19 is 4 or less.
+3. In most living beings the top two levels lie on the law's two axes.
+4. Leaves' agreement averages above 0.8.
+5. Survival is unchanged within noise, since the world and not the channel
+   decides it: fewer than 4 of 12 survive a generation on average.
+
+**Results.** Same seed, same law.
+
+| generation | survived of 12 | categories per being | deepest | narrowed | dissolved | undone |
+|---|---|---|---|---|---|---|
+| 1 | 1 | 2.4 | 2 | 4 | 11 | 0 |
+| 5 | 6 | 4.0 | 2 | 0 | 0 | 0 |
+| 10 | 6 | 4.5 | 4 | 0 | 0 | 0 |
+| 15 | 11 | 7.6 | 4 | 13 | 1 | 0 |
+| 19 | 9 | 7.8 | 3 | 1 | 1 | 0 |
+
+Scored against the predictions:
+
+1. Right: 7 to 9 per living being.
+2. Right: depth 3 in every living being.
+3. Right: 12 of 12 have their top two levels on the law's axes. The
+   commonest tree cuts axis 1 at -0.233 and then axis 2 at -0.204, against
+   a law of -0.216 and -0.203.
+4. Right: 0.90 over 55 leaves.
+5. Wrong: survival rose, from 1 of 12 at generation 1 to 6 by generation 5
+   and 11 by generation 15. Whether sane categories fed the kin tendency
+   or the draws simply differed is not settled by one run; a prediction
+   that said "unchanged" was wrong either way.
+
+**What it means.** Restraint of the kind the brief already demands, that
+consequence must support a cut, turned the thicket into something that can
+be read: a corner found in two cuts, agreed on across the whole
+population, with a few stale leaves beneath. The undo rule never fired; the
+thicket had been made of cuts that the sample rule now stops at the
+source. The viewer shows the thing the brief calls growth. Open: whether
+survival rose because of it.
