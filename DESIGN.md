@@ -15,7 +15,7 @@ decisions are open.
 | No imprinted direction | `core/mind.py::Disposition` | Every tendency is drawn with a random sign at birth, including the ones that read the body and the one that bends the rest. |
 | The open channel | `core/channel.py` | One nameless bucket. Categories are rules carved from it, named by coined syllables, tested against consequence, dissolved when they fail. A category narrows into children along another axis when its members disagree; an arrival lands in the deepest category that admits it. |
 | Seeing the boxes fill and narrow | `view.py` | Per being: the open bucket, the tree with each category's rule, members, agreement and mean, and the history of carving, narrowing, dissolving and undoing. Per world: growth by generation over every being that has lived. |
-| Teachers, never decrees | `core/teachers.py` | Each gets a frozen read-only view and returns a `Perspective`. The mind never carves on one view and never averages: the one proposal consequence supports best is taken, or none. |
+| Teachers, never decrees | `core/teachers.py`, `TEACHERS.md` | Off unless switched on. A teacher visits rarely and irregularly, sees the open bucket through a frozen read-only view, and leaves a remark and at most one proposed cut. The mind weighs it as one candidate among its own, by consequence; ties go to its own. It finds its own cuts and doubts its own categories and never waits for a visit. |
 | The distant figure, rare | `core/god.py` | `speak` is refused inside a minimum gap, and the refusal is recorded as silence. Words land as a featureless experience, like the mind's own forgotten sounds. |
 | The seed moment | `shell/seed.py::first_moment`, `core/mind.py::utter`, `::reflect` | Two forms nearly alike and alike in consequence; two identical and opposite. The first ledger entry after entering is `notice`. A surprise is hashed into syllables; the syllables are written; the state is dropped; the next tick finds the sound with no cause and holds it. |
 | The environment | `shell/` | Forms with an unnamed numeric surface and a hidden consequence, under one hidden law per world seed. Built per generation and thrown away. |
@@ -33,6 +33,18 @@ pays upkeep every tick and only positives supply energy, so starving is
 possible. A `World` holds beings; a generation is one shell each; the dead
 are sealed; the living beget. `compare.py` measures what being around
 changed: children of survivors against strangers in identical shells.
+
+**Unit five** took the teachers out of the loop. Until then the mind
+consulted six teachers on every tick that something new was lived and
+could not carve without a proposal from one of them; the carving engine
+was the teachers, which is the dependence the brief rules out. The mind's
+own looking (`_own_cuts`: the best line along each axis of what it has
+lived), its own doubt and its own undoing now do all of it. Teachers are
+visitors with their own random stream, so switching visits on changes
+nothing else about a run. The check of that found an older bug: a child
+starts its own ledger at zero but carries its parent's channel, and its
+acts overwrote inherited experiences with the same index. Experience
+indices are now the channel's own.
 
 **Unit four** let categories narrow and built the viewer. `consider` now
 offers every category whose members disagree a chance to split before it
@@ -76,6 +88,10 @@ each is a place where a direction could have crept in.
   and puzzles, so meaning accumulates. This is why `compare.py` compares
   lineages, not tendencies alone.
 - **Separate shells.** Each being lives in its own copy of the world.
+- **How harsh a shell is.** A corner law's thresholds sit low so that about
+  half of what is eaten is positive. Drawn around zero, the same law made
+  a famine in which only resters survived. The shape of the law is the
+  point; its scarcity is a separate dial.
 
 ## What the brief asks for that is not built
 
@@ -110,11 +126,21 @@ down after each success. A knob offered as learning was used as a damper.
    preference.
 2. *The hidden law is an answer key.* Agreed; see above. Nothing measures
    law recovery.
-3. *Hand-made teachers.* Yes, and the tendency slots too. Both are the
-   smallest imprint that lets the machinery run.
+3. *Hand-made teachers.* They were worse than hand-made: the mind could
+   not carve without them. Unit five made carving the mind's own and the
+   teachers rare visitors, off by default, with what they should be left
+   to the distant one (`TEACHERS.md`). The tendency slots remain hand-made.
 4. *A second being?* Nothing is the plan except to make minds. Not built.
 
 ## Decisions open to revision
+
+- **Whether begetting should cost the parent.** A child is born with a
+  fresh body whatever its parent ate. In a famine shell, selection found
+  this: lineages of beings that never act persist because each child
+  lives on its birth energy long enough to beget. Charging the parent for
+  a child would close that without preferring one sign of consequence,
+  but it changes "every survivor is as likely a parent" into "every
+  survivor who can afford it". Not taken; the distant one decides.
 
 - Body constants at the top of `core/mind.py`. The first balance of unit
   two made existing cost more than a perfect forager could gather, so

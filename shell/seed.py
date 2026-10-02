@@ -70,8 +70,12 @@ def law_for(seed, dims: int, kind: str = "axis") -> Law:
     threshold = round(rng.uniform(-0.3, 0.3), 3)
     if kind == "axis":
         return Law(axis=axis, threshold=threshold)
+    # a corner is the conjunction of two cuts; its thresholds sit low so that
+    # the corner covers about half the space and the world is no harsher
+    # than an axis world. The point of it is the shape, not scarcity.
     axis2 = rng.choice([a for a in range(dims) if a != axis])
-    return Law(axis=axis, threshold=threshold, axis2=axis2, threshold2=round(rng.uniform(-0.3, 0.3), 3))
+    return Law(axis=axis, threshold=round(rng.uniform(-0.6, -0.1), 3),
+               axis2=axis2, threshold2=round(rng.uniform(-0.6, -0.1), 3))
 
 
 def _vec(rng: random.Random, dims: int) -> tuple:

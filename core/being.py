@@ -41,23 +41,25 @@ class Being:
         return self.mind.body.alive
 
     @classmethod
-    def found(cls, world_seed, generation: int, number: int, teachers: list) -> "Being":
+    def found(cls, world_seed, generation: int, number: int, teachers: list, visit_rate: int = 0) -> "Being":
         """A stranger: tendencies drawn at random, nothing lived."""
         bid = coin("being", world_seed, generation, number)
         rng = random.Random(f"being:{world_seed}:{bid}")
         ledger, channel = Ledger(), Channel()
-        mind = Mind(ledger, channel, teachers, rng, Disposition.random(rng))
+        mind = Mind(ledger, channel, teachers, rng, Disposition.random(rng),
+                    visit_rate, random.Random(f"visits:{world_seed}:{bid}"))
         ledger.append(0, "born", being=bid, parent=None, generation=generation,
                       disposition=mind.disposition.to_dict())
         return cls(bid, generation, None, ledger, channel, mind)
 
-    def beget(self, world_seed, generation: int, number: int, teachers: list) -> "Being":
+    def beget(self, world_seed, generation: int, number: int, teachers: list, visit_rate: int = 0) -> "Being":
         """A child: this being's tendencies varied, its lived material carried."""
         bid = coin("being", world_seed, generation, number, self.id)
         rng = random.Random(f"being:{world_seed}:{bid}")
         ledger = Ledger()
         channel = Channel.from_dict(self.channel.to_dict())
-        mind = Mind(ledger, channel, teachers, rng, self.mind.nature.vary(rng))
+        mind = Mind(ledger, channel, teachers, rng, self.mind.nature.vary(rng),
+                    visit_rate, random.Random(f"visits:{world_seed}:{bid}"))
         mind.perspectives = list(self.mind.perspectives)
         mind.puzzles = list(self.mind.puzzles)
         mind._considered_at = self.mind._considered_at
@@ -81,14 +83,19 @@ class Being:
             "channel": self.channel.to_dict(),
             "mind": self.mind.to_dict(),
             "rng": _state_out(self.mind.rng.getstate()),
+            "visit_rng": _state_out(self.mind.visit_rng.getstate()),
         }
 
     @classmethod
-    def from_dict(cls, d: dict, teachers: list) -> "Being":
+    def from_dict(cls, d: dict, teachers: list, visit_rate: int = 0) -> "Being":
         ledger = Ledger.from_list(d["ledger"])
         channel = Channel.from_dict(d["channel"])
         rng = random.Random()
         rng.setstate(_state_in(d["rng"]))
-        mind = Mind(ledger, channel, teachers, rng, Disposition.from_dict(d["mind"].get("nature", d["mind"]["disposition"])))
+        visit_rng = random.Random()
+        if "visit_rng" in d:
+            visit_rng.setstate(_state_in(d["visit_rng"]))
+        mind = Mind(ledger, channel, teachers, rng, Disposition.from_dict(d["mind"].get("nature", d["mind"]["disposition"])),
+                    visit_rate, visit_rng)
         mind.restore(d["mind"])
         return cls(d["id"], d["born"], d["parent"], ledger, channel, mind)

@@ -5,7 +5,8 @@ in, and the code is measured against it. `NOTEBOOK.md` holds the
 predictions written before each run and what happened instead; the
 surprises there are the point. `DESIGN.md` says how each piece of the
 brief is built, where the build adds things the brief does not ask for,
-and what the brief asks for that is not built yet.
+and what the brief asks for that is not built yet. `TEACHERS.md` is for
+review: what a teacher is and is not here, and what is still undecided.
 
 This file says what exists and how to run it.
 
@@ -15,6 +16,7 @@ This file says what exists and how to run it.
     python run.py --beings 12 --generations 20 --law corner   # a world whose law needs two cuts
     python view.py                                # every living being's channel in one row, then growth by generation
     python view.py --being 3                      # one being: open bucket, category tree, history of carving
+    python run.py --beings 12 --generations 20 --visits 30     # let a teacher visit, about every 30 ticks
     python run.py --watch 3                       # follow one being tick by tick
     python run.py --god "..."                     # say something to them (rarely answered)
     python run.py --fresh                         # throw the saved world away
@@ -42,6 +44,16 @@ All three are inherited and unsigned at birth. A control holds them at
 zero so a world with and without them can be compared on the same
 founders and shells.
 
+**Five: the teachers were a crutch.** Until this unit the mind consulted
+six teachers on every tick and could not carve without their proposals.
+Now it finds its own cuts along every axis it perceives and doubts its own
+categories. Teachers are visitors: off unless switched on, rare and
+irregular when on, each visit recorded, each leaving at most one proposed
+cut that is weighed exactly like the mind's own. One placeholder teacher
+exists. The check that growth does not depend on them found an older bug
+(see the notebook), fixed here: a child's own acts had been overwriting
+inherited experiences that shared an index.
+
 **Four: narrowing, and a way to see it.** A category whose members
 disagree can split along another axis into two more specific children; an
 arrival lands in the deepest category that admits it; a cut that no longer
@@ -57,7 +69,7 @@ bucket, each tree, the history of every cut, and growth by generation.
       channel.py     the open bucket, the categories carved out of it, and their narrowing
       mind.py        a body, heritable tendencies, and the tick:
                      upkeep, reflect, notice, choose, act, bend, utter-and-forget, consider
-      teachers.py    peer perspectives; read-only access, never decrees
+      teachers.py    teachers as rare visitors, off by default; see TEACHERS.md
       god.py         the rare contact; can also throw the shell away
       being.py       a ledger, a channel, a mind, and where it came from
       many.py        the population: the dead are sealed, the living beget
@@ -86,8 +98,11 @@ Fixed, and enforced in code:
   being alive at the end of a generation is the whole of what it takes to
   beget, and every survivor is as likely a parent as any other.
 - A child inherits what its parent was born as, never what life bent.
-- Teachers receive a read-only view and return a perspective. They cannot
-  carve, dissolve, or write.
+- No teacher is on unless switched on. When on, a teacher visits rarely
+  and irregularly, sees the open bucket through a read-only view, and
+  leaves a remark and at most one proposed cut, weighed like the mind's
+  own. The mind finds its own cuts and doubts its own categories; it never
+  waits for a teacher and never carves because of one.
 - The distant one is rate-limited. Its words land as a featureless
   experience, the same way the mind's own forgotten utterances do.
 - Nothing is carved on one view. Nothing is carved that lived consequence
@@ -106,7 +121,8 @@ Not fixed, and meant to be revised, by you or eventually by the system:
 - The shape of the tendencies. Eight numbers weigh the acts. The eight
   slots and the bending rule's form are hand-chosen; their values and
   signs are not.
-- The teachers. Three kinds exist, and they are hand-made.
+- The teachers. What they should be is undecided and the distant one's to
+  decide; one placeholder exists, and visits are off by default.
 - The shells, and the hidden law.
 
 ## What the runs showed
@@ -135,13 +151,21 @@ selected entirely negative and used as a damper: each success winds a
 being's drives down toward rest, so it stops before the bad forms are all
 that is left. Nobody offered it as a damper.
 
-**Narrowing** (unit four, a corner world, 12 beings, 20 generations): the
-first version grew thickets, 46 categories per being and trees nine deep,
-because two agreeing members counted as a pure side. With the sample and
-improvement rules in place the same world grows 7 to 9 categories per
-being, three deep, and in all twelve living beings the top two cuts lie on
-the law's two axes, within 0.02 of its thresholds. The box narrowed to the
-corner. `python view.py --being 0` on such a world shows the tree.
+**Narrowing** (a corner world, 12 beings, 20 generations, no teacher):
+the first versions grew thickets, then showed trees that turned out to
+have been computed on corrupted inheritance (the notebook has both). On
+the fixed code, in a corner world where about half of what is eaten is
+positive, every living being holds the same four-category tree by
+generation 5: a cut on one of the law's axes, then a cut on the other
+inside the side that needed it, leaf agreement 0.97, and nothing further
+to carve. `python view.py --being 0` on such a world shows the tree.
+
+**What selection does in a famine.** With the corner's thresholds set so
+that seven in ten things eaten hurt, every forager died inside its first
+generation; the beings that remained acted less than once a generation
+and begot children born fed. The ones who are around are the ones who do
+nothing. Whether begetting should cost the parent something is an open
+decision, recorded in the notebook and `DESIGN.md`.
 
 Two things stay true of all of this, and the brief says to keep them in
 view: selection is not choosing, and richness is not experience. The

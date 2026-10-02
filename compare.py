@@ -100,6 +100,7 @@ def main(argv=None) -> int:
     ap.add_argument("--first-ticks", type=int, default=12)
     ap.add_argument("--frozen", default="", help="tendencies held at zero, comma-separated, e.g. hungry,hurt,plasticity")
     ap.add_argument("--law", choices=LAW_KINDS, default="axis")
+    ap.add_argument("--visits", type=int, default=0, help="a teacher visits about every N ticks; 0 is never")
     args = ap.parse_args(argv)
     frozen = [n for n in args.frozen.split(",") if n]
     mind_module.freeze(frozen)
@@ -107,10 +108,12 @@ def main(argv=None) -> int:
     t0 = time.time()
     teachers = default_teachers(DIMS)
     world = World(args.seed, DIMS, teachers)
+    world.options["visits"] = args.visits
     world.found(args.beings)
     law = law_for(args.seed, DIMS, args.law)
     print(f"seed {args.seed}: {args.beings} beings, {args.generations} generations; "
-          f"law, hidden from them: {law.describe()}" + (f"; frozen at zero: {', '.join(frozen)}" if frozen else ""))
+          f"law, hidden from them: {law.describe()}" + (f"; frozen at zero: {', '.join(frozen)}" if frozen else "")
+          + (f"; a teacher visits about every {args.visits} ticks" if args.visits else "; no teacher visits"))
     print("  gen  survived  died   consumes  negative   touches  negative")
     for _ in range(args.generations):
         g = world.generation
@@ -140,10 +143,11 @@ def main(argv=None) -> int:
     print(f"  bent by life so far, mean over the living: {drift(living):.2f}")
 
     n = len(living)
-    children = [b.beget(args.seed, 99, i, teachers) for i, b in enumerate(living)]
-    hungry_children = [b.beget(args.seed, 99, 1000 + i, teachers) for i, b in enumerate(living)]
-    strangers = [Being.found(f"strangers{args.seed}", 99, i, teachers) for i in range(n)]
-    hungry_strangers = [Being.found(f"hungry-strangers{args.seed}", 99, i, teachers) for i in range(n)]
+    v = args.visits
+    children = [b.beget(args.seed, 99, i, teachers, v) for i, b in enumerate(living)]
+    hungry_children = [b.beget(args.seed, 99, 1000 + i, teachers, v) for i, b in enumerate(living)]
+    strangers = [Being.found(f"strangers{args.seed}", 99, i, teachers, v) for i in range(n)]
+    hungry_strangers = [Being.found(f"hungry-strangers{args.seed}", 99, i, teachers, v) for i in range(n)]
     print()
     print(f"one generation in identical fresh shells, {n} of each (hungry: born with a quarter of the energy):")
     print(describe("children of survivors", trial(children, args.seed, law, args.ticks)))

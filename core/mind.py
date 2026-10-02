@@ -21,11 +21,15 @@ What it does each tick, in order:
             never holds the why; the body is bent by it anyway.
   utter     when something surprises it, emit a coined sound. The sound is
             written down. The state that produced it is not.
-  consider  ask the teachers, keep their perspectives, and test their
-            proposals and doubts against lived consequence before carving,
-            narrowing or dissolving anything. A category whose members
-            disagree is offered a chance to narrow before it can be
-            doubted.
+  consider  look at what it has lived, along every axis it perceives, for
+            the cut that consequence supports best; carve the open bucket,
+            narrow a category whose members disagree, doubt and dissolve
+            what no longer holds, undo a cut that parts nothing. All of it
+            its own. If a visitor left a perspective, that is one more
+            candidate cut, weighed the same way.
+  visit     rarely, and only if visits are switched on, a teacher looks at
+            the open bucket and leaves a perspective. The mind never waits
+            for one.
 
 Body physics (magnitudes tunable; only the sign of valence is fixed):
 negatives take from `life`, which nothing restores. Positives add to
@@ -39,7 +43,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Optional
 
-from .channel import Channel, Experience, purity
+from .channel import Channel, Experience, best_line, purity
 from .ledger import Ledger
 from .symbols import coin
 from .teachers import Perspective
@@ -59,8 +63,7 @@ BOUND = 3.0          # how far a tendency can be bent within a life
 
 FROZEN: frozenset = frozenset()   # tendencies held at zero, for experiments asking what a knob does
 
-MIN_VIEWS = 2        # never carve on a single view
-CONSULT_MIN = 4      # lived consequences of both signs before the teachers are asked
+CONSULT_MIN = 4      # lived consequences of both signs before it looks for a cut
 MIN_SIDE = 4         # a side with fewer lived members cannot be carved
 COMMIT_PURITY = 0.8  # both sides this pure, and purer together than what they were cut from: carve
 TWO_SIDED_IMPROVEMENT = 0.05
@@ -197,13 +200,14 @@ class Disposition:
 
 @dataclass(frozen=True)
 class Puzzle:
-    about: int   # ledger index of the unexplained thing
-    found: int   # ledger index of the moment it was found
+    about: int       # ledger index of the unexplained thing
+    found: int       # ledger index of the moment it was found
     tick: int
     token: str
+    exp: int = -1    # the featureless experience it became, in the channel
 
     def to_dict(self) -> dict:
-        return {"about": self.about, "found": self.found, "tick": self.tick, "token": self.token}
+        return {"about": self.about, "found": self.found, "tick": self.tick, "token": self.token, "exp": self.exp}
 
 
 @dataclass
@@ -232,10 +236,13 @@ def _dist(a: tuple, b: tuple) -> float:
 
 class Mind:
     def __init__(self, ledger: Ledger, channel: Channel, teachers: list, rng: random.Random,
-                 disposition: Optional[Disposition] = None) -> None:
+                 disposition: Optional[Disposition] = None, visit_rate: int = 0,
+                 visit_rng: Optional[random.Random] = None) -> None:
         self.ledger = ledger
         self.channel = channel
-        self.teachers = teachers
+        self.teachers = teachers          # who may visit; nobody does unless visit_rate > 0
+        self.visit_rate = visit_rate      # a visit about every this many ticks, never two closer than half that
+        self.visit_rng = visit_rng or random.Random(0)   # its own stream, so visits change nothing else
         self.rng = rng
         self.nature = disposition if disposition is not None else Disposition.random(rng)
         self.disposition = self.nature   # what it is now; life bends this, never the nature
@@ -248,6 +255,8 @@ class Mind:
         self._considered_at = 0       # how many lived consequences there were at the last consult
         self._scanned = 0             # how far reflect has read its own ledger
         self._chosen: dict = {}       # the components behind the last choice, for bend
+        self._offered: list = []      # visitors' proposals not yet weighed
+        self._last_visit = -10 ** 9
 
     # -- shells and contacts -------------------------------------------------
 
@@ -258,10 +267,28 @@ class Mind:
                            forms=len(getattr(space, "forms", {})))
 
     def receive(self, p: Perspective) -> None:
-        """Take in words from outside the peer circle. They land in the ledger
-        like any other thing that happened, for reflect to find."""
+        """Take in words from the distant one. They land in the ledger like
+        any other thing that happened, for reflect to find."""
         self.ledger.append(self.age, "contact", text=p.remark, source=p.source)
         self.perspectives.append(p)
+
+    # -- visits ------------------------------------------------------------
+
+    def visit(self, t: int) -> list:
+        """Rarely, a teacher looks at the open bucket and leaves a perspective."""
+        if not self.teachers or self.visit_rate <= 0:
+            return []
+        if t - self._last_visit < self.visit_rate // 2 or self.visit_rng.random() >= 1.0 / self.visit_rate:
+            return []
+        self._last_visit = t
+        teacher = self.visit_rng.choice(self.teachers)
+        p = teacher.regard(self.channel.view(None), t)
+        self.ledger.append(t, "visit", source=p.source, remark=p.remark,
+                           proposal=p.proposal.to_dict() if p.proposal else None)
+        self.perspectives.append(p)
+        if p.proposal is not None:
+            self._offered.append(p)
+        return [f"  a visitor, {p.source}: {p.remark}"]
 
     # -- one tick --------------------------------------------------------------
 
@@ -309,6 +336,7 @@ class Mind:
                 if not self.body.alive:
                     lines.append("  life has run out.")
 
+        lines += self.visit(t)
         lines += self.consider(t)
         return lines
 
@@ -322,9 +350,10 @@ class Mind:
             if e.kind not in ("utterance", "contact") or e.index in self.accounted:
                 continue
             token = e.payload.get("that") or e.payload.get("text") or ""
-            found = self.ledger.append(t, "puzzle", about=e.index, token=token)
-            self.channel.add(Experience(index=found.index, tick=t, features=None, token=token))
-            self.puzzles.append(Puzzle(about=e.index, found=found.index, tick=t, token=token))
+            index = self.channel.new_index()
+            found = self.ledger.append(t, "puzzle", about=e.index, token=token, exp=index)
+            self.channel.add(Experience(index=index, tick=t, features=None, token=token))
+            self.puzzles.append(Puzzle(about=e.index, found=found.index, tick=t, token=token, exp=index))
             self.accounted.add(e.index)
             source = "its own" if e.kind == "utterance" else "a distant"
             lines.append(
@@ -447,8 +476,9 @@ class Mind:
         raw = space.touch(fid) if kind == "touch" else space.consume(fid)
         v = Valence(raw)
         self.body.live(v)
+        index = self.channel.new_index()
         entry = self.ledger.append(
-            t, "act", act=kind, form=fid, valence=raw,
+            t, "act", act=kind, form=fid, valence=raw, exp=index,
             life=round(self.body.life, 3), energy=round(self.body.energy, 3),
         )
         if kind == "consume":
@@ -456,7 +486,7 @@ class Mind:
             self.touched.pop(fid, None)
         else:
             self.touched[fid] = entry.index
-        exp = Experience(index=entry.index, tick=t, features=tuple(surface), token=fid, valence=raw)
+        exp = Experience(index=index, tick=t, features=tuple(surface), token=fid, valence=raw)
         landed = self.channel.add(exp)
         return exp, landed
 
@@ -491,40 +521,111 @@ class Mind:
         lines = []
         lived_total = sum(1 for e in self.channel.experiences.values() if e.valence is not None)
         if lived_total == self._considered_at:
-            return lines  # nothing new has been lived; nothing new to ask about
+            return lines  # nothing new has been lived; nothing new to look at
         self._considered_at = lived_total
 
         stood = [c.name for c in self.channel.leaves()]
-        doubts: list = []
 
         # a category whose members disagree gets a chance to narrow first
         for name in stood:
             lived = [e for e in self.channel.members_of(name) if e.valence is not None]
             if purity(lived) >= COMMIT_PURITY or len(lived) < 2 * MIN_SIDE or {e.sign for e in lived} != {1, -1}:
                 continue
-            lines += self._consult(t, name, doubts)
+            lines += self._look(t, name)
 
         # then the open bucket
-        lines += self._consult(t, None, doubts)
+        lines += self._look(t, None)
 
-        # doubts fall only on what already stood and still stands unnarrowed
-        for name in dict.fromkeys(doubts):
-            if name not in stood or name not in self.channel.categories or self.channel.children(name):
-                continue
-            pur = purity(self.channel.members_of(name))
-            if pur < DOUBT_PURITY:
-                cat = self.channel.dissolve(name)
-                self.ledger.append(t, "dissolve", name=cat.name, parent=cat.parent,
-                                   purity=round(pur, 3), members=len(cat.members))
-                that = self.utter(t, ("dissolve", cat.name, round(pur, 3)))
-                where = f"into '{cat.parent}'" if cat.parent else "into the open"
-                lines.append(f"  dissolves '{cat.name}' ({pur:.2f}); {len(cat.members)} fall back {where}")
-                lines.append(f'  utters "{that}"   (the why is not kept)')
-            else:
-                lines.append(f"  keeps '{name}' ({pur:.2f})")
+        # doubt falls only on what already stood and still stands unnarrowed
+        lines += self._doubt(t, stood)
 
         # a cut whose two sides no longer part consequence is undone
         lines += self._undo_idle_cuts(t, stood)
+        return lines
+
+    def _own_cuts(self, lived: list) -> list:
+        """Along every axis it perceives, the line that best sorts what it has lived."""
+        dims = len(lived[0].features)
+        cuts = []
+        for axis in range(dims):
+            rule = best_line(lived, axis)
+            if rule is not None:
+                cuts.append((rule, f"own axis {axis}"))
+        return cuts
+
+    def _look(self, t: int, within: Optional[str]) -> list:
+        """Weigh every candidate cut for one scope and carve if consequence allows."""
+        lines = []
+        lived = [e for e in self.channel.direct(within) if e.valence is not None and e.features is not None]
+        if len(lived) < CONSULT_MIN or {e.sign for e in lived} != {1, -1}:
+            return lines
+        candidates = self._own_cuts(lived)
+        if within is None and self._offered:
+            candidates += [(p.proposal, f"visitor {p.source}") for p in self._offered]
+            self._offered = []
+        where = f"within '{within}'" if within else "in the open"
+
+        scope_purity = purity(lived)
+        best = None
+        seen = set()
+        for rule, source in candidates:
+            if rule in seen:
+                continue
+            seen.add(rule)
+            hi = [e for e in lived if rule.side(e.features) == 1]
+            lo = [e for e in lived if rule.side(e.features) == -1]
+            if min(len(hi), len(lo)) < MIN_SIDE:
+                continue
+            ph, pl = purity(hi), purity(lo)
+            together = (len(hi) * ph + len(lo) * pl) / (len(hi) + len(lo))
+            if min(ph, pl) >= COMMIT_PURITY and together - scope_purity >= TWO_SIDED_IMPROVEMENT:
+                score = (2, min(ph, pl), max(ph, pl))
+            else:
+                pure_side, pp = (hi, ph) if ph >= pl else (lo, pl)
+                if len(pure_side) >= ONE_SIDED_MIN and pp >= ONE_SIDED_PURITY and pp - scope_purity >= IMPROVEMENT:
+                    score = (1, pp, min(ph, pl))
+                else:
+                    continue
+            if best is None or score > best[0]:
+                best = (score, rule, source, ph, pl)
+        if best is None:
+            lines.append(f"  looks {where}: {len(candidates)} cuts weighed; none holds")
+            return lines
+        score, rule, source, ph, pl = best
+        cats = self.channel.split(rule, t, coin, within)
+        kind = "refine" if within else "carve"
+        self.ledger.append(
+            t, kind, within=within, rule=rule.to_dict(), names=[c.name for c in cats],
+            sizes=[len(c.members) for c in cats], purities=[round(ph, 3), round(pl, 3)],
+            depth=self.channel.depth(cats[0].name), after=source,
+        )
+        verb = f"narrows '{within}'" if within else "carves the open"
+        lines.append(
+            f"  {verb} along axis {rule.axis} at {rule.threshold:.3f} ({source}, {len(candidates)} cuts weighed): "
+            + ", ".join(f"'{c.name}' x{len(c.members)} ({pu:.2f})" for c, pu in zip(cats, (ph, pl)))
+        )
+        return lines
+
+    def _doubt(self, t: int, stood: list) -> list:
+        """Its own doubt: a category that no longer agrees with itself dissolves."""
+        lines = []
+        for name in stood:
+            if name not in self.channel.categories or self.channel.children(name):
+                continue
+            members = self.channel.members_of(name)
+            lived = [e for e in members if e.valence is not None]
+            if len(lived) < MIN_SIDE:
+                continue
+            pur = purity(members)
+            if pur >= DOUBT_PURITY:
+                continue
+            cat = self.channel.dissolve(name)
+            self.ledger.append(t, "dissolve", name=cat.name, parent=cat.parent,
+                               purity=round(pur, 3), members=len(cat.members))
+            that = self.utter(t, ("dissolve", cat.name, round(pur, 3)))
+            where = f"into '{cat.parent}'" if cat.parent else "into the open"
+            lines.append(f"  dissolves '{cat.name}' ({pur:.2f}); {len(cat.members)} fall back {where}")
+            lines.append(f'  utters "{that}"   (the why is not kept)')
         return lines
 
     def _undo_idle_cuts(self, t: int, stood: list) -> list:
@@ -557,75 +658,6 @@ class Mind:
                          f"({pur:.2f} together); {len(together)} fall back {where}")
         return lines
 
-    def _consult(self, t: int, within: Optional[str], doubts: list) -> list:
-        """Ask every teacher about one scope and carve it if consequence allows."""
-        lines = []
-        view = self.channel.view(within)
-        lived = view.valenced(view.open)
-        enough = len(lived) >= CONSULT_MIN and {e.sign for e in lived} == {1, -1}
-        if not enough and not view.categories and not view.leaves:
-            return lines
-
-        views = [tr.regard(view, t) for tr in self.teachers]
-        self.perspectives.extend(views)
-        for p in views:
-            self.ledger.append(
-                t, "perspective", source=p.source, scope=within,
-                proposal=p.proposal.to_dict() if p.proposal else None, doubt=p.doubt,
-            )
-            if p.doubt:
-                doubts.append(p.doubt)
-        where = f"within '{within}'" if within else "in the open"
-        n_prop = sum(1 for p in views if p.proposal)
-        lines.append(f"  consult {len(views)} teachers {where}: {n_prop} proposals, "
-                     f"{sum(1 for p in views if p.doubt)} doubts")
-        for p in views:
-            lines.append(f"    {p.source}: {p.remark}")
-
-        if len(views) < MIN_VIEWS or not enough:
-            return lines
-        scope_purity = purity(lived)
-        best = None
-        seen = set()
-        for p in views:
-            r = p.proposal
-            if r is None or r in seen:
-                continue
-            seen.add(r)
-            hi = [e for e in lived if r.side(e.features) == 1]
-            lo = [e for e in lived if r.side(e.features) == -1]
-            if min(len(hi), len(lo)) < MIN_SIDE:
-                continue
-            ph, pl = purity(hi), purity(lo)
-            together = (len(hi) * ph + len(lo) * pl) / (len(hi) + len(lo))
-            if min(ph, pl) >= COMMIT_PURITY and together - scope_purity >= TWO_SIDED_IMPROVEMENT:
-                score = (2, min(ph, pl), max(ph, pl))
-            else:
-                pure_side, pp = (hi, ph) if ph >= pl else (lo, pl)
-                if len(pure_side) >= ONE_SIDED_MIN and pp >= ONE_SIDED_PURITY and pp - scope_purity >= IMPROVEMENT:
-                    score = (1, pp, min(ph, pl))
-                else:
-                    continue
-            if best is None or score > best[0]:
-                best = (score, p, ph, pl)
-        if best is None:
-            lines.append(f"  nothing carved {where}: no view survives consequence")
-            return lines
-        score, p, ph, pl = best
-        cats = self.channel.split(p.proposal, t, coin, within)
-        kind = "refine" if within else "carve"
-        self.ledger.append(
-            t, kind, within=within, rule=p.proposal.to_dict(), names=[c.name for c in cats],
-            sizes=[len(c.members) for c in cats], purities=[round(ph, 3), round(pl, 3)],
-            depth=self.channel.depth(cats[0].name), after=p.source,
-        )
-        verb = f"narrows '{within}'" if within else "carves the open"
-        lines.append(
-            f"  {verb} along axis {p.proposal.axis} at {p.proposal.threshold:.3f} (after {p.source}): "
-            + ", ".join(f"'{c.name}' x{len(c.members)} ({pu:.2f})" for c, pu in zip(cats, (ph, pl)))
-        )
-        return lines
-
     # -- persistence -------------------------------------------------------
 
     def to_dict(self) -> dict:
@@ -639,6 +671,8 @@ class Mind:
             "accounted": sorted(self.accounted),
             "considered_at": self._considered_at,
             "scanned": self._scanned,
+            "last_visit": self._last_visit,
+            "offered": [p.to_dict() for p in self._offered],
         }
 
     def restore(self, d: dict) -> None:
@@ -651,3 +685,5 @@ class Mind:
         self.accounted = set(d["accounted"])
         self._considered_at = d.get("considered_at", 0)
         self._scanned = d.get("scanned", 0)
+        self._last_visit = d.get("last_visit", -10 ** 9)
+        self._offered = [Perspective.from_dict(p) for p in d.get("offered", [])]

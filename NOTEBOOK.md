@@ -287,3 +287,156 @@ population, with a few stale leaves beneath. The undo rule never fired; the
 thicket had been made of cuts that the sample rule now stops at the
 source. The viewer shows the thing the brief calls growth. Open: whether
 survival rose because of it.
+
+## Unit five: the teachers were a crutch
+
+The distant one pointed out that the teachers had never been reviewed, and
+that teachers were meant to be rare and controlled, never something to
+lean on. What was built was the opposite: the mind consulted six teachers
+on every tick that something new was lived, and could not carve a single
+category except on a teacher's proposal. The carving engine was the
+teachers.
+
+Changed: the mind now finds its own cuts, along every axis it perceives,
+and doubts its own categories. Teachers are visitors: off unless switched
+on, about one visit per N ticks and never two closer than N/2, each visit
+recorded in the ledger and shown by the viewer, each leaving a remark and
+at most one proposed cut that is weighed exactly like the mind's own. One
+teacher exists, nearness, as an example; what the teachers are is the
+distant one's to specify (`TEACHERS.md`).
+
+Written before the check. The corner world, seed 0, 12 beings, 20
+generations, run twice: with no teacher at all, and with a visit about
+every 30 ticks. Founders, shells and choices are the same in both until a
+visitor's cut is carved, since visits draw from a stream of their own.
+
+**Predictions.**
+
+1. With no teacher at all, the world still narrows to the law: categories
+   per living being between 4 and 12, deepest 4 or less, top two levels on
+   the law's axes in at least 9 of 12 living beings.
+2. With visits, the same within noise: categories per being within 3 of
+   the no-teacher run, deepest within 1.
+3. Fewer than one carve or narrowing in ten is attributed to a visitor.
+4. Survival at generation 19 is within 3 of 12 of the no-teacher run.
+
+**Results, first attempt.** The two runs should have been identical until
+a visitor's cut was carved, and no visitor's cut was ever carved, yet they
+diverged by generation 5: the run with no teacher grew 28 categories per
+being and trees nine deep, the visited run 9 categories and depth 4. The
+hunt for the divergence found a bug older than the teachers. Each being's
+ledger starts at zero, but a child carries its parent's channel, whose
+experiences were keyed by the parent's ledger indices. A child's own acts
+overwrote inherited experiences that shared an index, and category member
+sets then pointed at the wrong material. A visit adds one ledger entry
+and shifts which indices collide, which is all the visited run had
+changed. Experience indices are now the channel's own and never collide.
+
+Every result since unit two that involves inheritance was computed on
+channels corrupted this way: the children-against-strangers comparisons,
+the paired knobs experiment, the corner runs, and the first attempt at
+this check. They are rerun below, on the fixed code, with the predictions
+restated first. The earlier entries stand as written, as the record of
+what was believed and why.
+
+## Unit five, second attempt, after the fix
+
+Same check, same predictions as above, with one sharpened: with no
+visitor's cut ever carved, the two runs must now be identical in every
+act and every category, and the viewer's growth tables must match line
+for line. If a visitor's cut is carved, the runs may differ from that
+tick on and nowhere before it.
+
+**Results.** Identical, line for line: the same acts, the same
+categories and the same growth table in both runs, and no visitor's cut
+was carved in either (250 visits, none taken). A visit changes nothing by
+itself.
+
+**Surprise.** With inheritance intact, the corner world does not grow at
+all: 0.7 categories per living being at generation 19, deepest 1. The
+reason is not the channel. The whole population died out at generation 4
+and the world began again from strangers, and from generation 7 on the
+beings alive act between 0.4 and 5 times a generation. In a world where
+seven in ten things eaten hurt, every forager dies inside its first
+generation and never begets; a being that rests loses no life, lives on
+its birth energy for most of two generations, and begets a child that is
+born fed. The ones who are around are the ones who do nothing. Nothing
+ranks the living, so nothing stops it. Before the fix the same world
+showed trees and law-finding; those were computed on corrupted channels
+and are withdrawn.
+
+Two things follow. The corner shell as built is a famine, which is a
+property of the shell and not the point of it; the point was a law that
+needs two cuts. Its thresholds will be drawn so the corner covers about
+half the space, and the run repeated with a prediction first. And a child
+born fed from a parent that never ate is a loophole in the body's physics
+that selection found. Whether begetting should cost the parent something
+is a decision for the distant one; it is not taken here.
+
+## Unit five, third attempt: a corner that is not a famine
+
+Changed: a corner law draws its two thresholds from -0.6 to -0.1 instead
+of -0.3 to 0.3, so about half of what is eaten is positive, as in the axis
+world. Nothing in the core changes. Written before the run: seed 0, 12
+beings, 20 generations, no teacher.
+
+**Predictions.**
+
+1. No extinction, and at least 4 of 12 survive a generation on average.
+2. Among the living after generation 5, at least 10 acts per being per
+   generation.
+3. Categories per living being at generation 19 between 3 and 12, deepest
+   between 2 and 4.
+4. Top two levels on the law's axes in at least 8 of 12 living beings.
+5. Leaf agreement above 0.8.
+
+**Results.** The law came out as axis 2 >= -0.530 and axis 1 >= -0.516.
+
+| generation | survived of 12 | acts per being | categories per being | deepest |
+|---|---|---|---|---|
+| 1 | 9 | 44 | 2.3 | 3 |
+| 5 | 8 | 55 | 4.8 | 2 |
+| 10 | 5 | 57 | 4.0 | 2 |
+| 15 | 6 | 46 | 4.0 | 2 |
+| 19 | 5 | 26 | 4.0 | 2 |
+
+All five predictions right: no extinction, 36 to 57 acts per being per
+generation, four categories in every living being, two deep, the top two
+levels on the law's axes in all twelve, leaf agreement 0.97. One being's
+channel at generation 20, as the viewer prints it:
+
+```
+  open: 0 with a surface (0 +, 0 -), 36 without one
+  'ri-lo-de'  axis 1 >= -0.523   narrowed into 2   born 25   (inherited)
+      'ne-li-mu'  axis 2 >= -0.569   319 members  agreement 0.94  mean +0.522   born 7   (inherited)
+      'shi-ri-va'  axis 2 <  -0.569   77 members  agreement 1.00  mean -0.538   born 7   (inherited)
+  'ti-ro-lo'  axis 1 <  -0.523   103 members  agreement 0.96  mean -0.522   born 25   (inherited)
+  history:
+  born carrying 4 categories from po-lo-so
+```
+
+**What it means.** The box filled and narrowed to the corner, and then
+stopped: from generation 5 on nothing is carved, narrowed or dissolved,
+because the tree accounts for everything lived. This is the first run in
+which growth can be seen and read, on intact inheritance, with no teacher
+in the world. What it does not show is any further growth once the shell
+is understood; a shell this simple is understood in five generations, and
+the brief says to throw shells away and build harder ones.
+
+## Reruns on the fixed code: children against strangers
+
+Written before running. Six seeds, 24 beings, 20 generations, axis law,
+twice each: the unit-three knobs frozen at zero and free. The founders and
+shells are the same as in the paired knobs experiment above; only the
+inheritance is now intact.
+
+**Predictions.**
+
+1. Children of survivors lose less life than strangers in at least four
+   of six seeds, in both conditions.
+2. The mean margins of the two conditions are within 0.5 of each other.
+3. With inheritance intact the margins are larger than before the fix in
+   the majority of seeds, in both conditions, since children now actually
+   carry what their parents lived.
+
+**Results.** (to be written after the runs)

@@ -43,10 +43,14 @@ class World:
     def living(self) -> list:
         return [b for b in self.beings if b.alive]
 
+    @property
+    def visit_rate(self) -> int:
+        return int(self.options.get("visits", 0))
+
     # -- beginnings --------------------------------------------------------
 
     def _found_one(self, generation: int) -> Being:
-        b = Being.found(self.seed, generation, self.births, self.teachers)
+        b = Being.found(self.seed, generation, self.births, self.teachers, self.visit_rate)
         self.births += 1
         self.ledger.append(generation, "born", being=b.id, parent=None,
                            disposition=b.mind.disposition.to_dict())
@@ -109,7 +113,7 @@ class World:
                 child = self._found_one(g + 1)
             else:
                 parent = self.rng.choice(living)
-                child = parent.beget(self.seed, g + 1, self.births, self.teachers)
+                child = parent.beget(self.seed, g + 1, self.births, self.teachers, self.visit_rate)
                 self.births += 1
                 self.ledger.append(g, "born", being=child.id, parent=parent.id,
                                    disposition=child.mind.disposition.to_dict())
@@ -152,5 +156,5 @@ class World:
         world.god.restore(d["god"])
         v, internal, gauss = d["rng"]
         world.rng.setstate((v, tuple(internal), gauss))
-        world.beings = [Being.from_dict(b, teachers) for b in d["beings"]]
+        world.beings = [Being.from_dict(b, teachers, world.visit_rate) for b in d["beings"]]
         return world

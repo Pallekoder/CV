@@ -73,11 +73,14 @@ def history_lines(ledger) -> list:
             lines.append(
                 f"  tick {e.tick:4d}  narrow    '{p['within']}' along axis {p['rule']['axis']} at {p['rule']['threshold']:+.3f}  -> "
                 + ", ".join(f"'{n}' x{s} ({pu:.2f})" for n, s, pu in zip(p["names"], p["sizes"], p["purities"]))
-                + f"   depth {p['depth']}"
+                + f"   depth {p['depth']}, after {p['after']}"
             )
         elif e.kind == "dissolve":
             where = f"into '{p['parent']}'" if p.get("parent") else "into the open"
             lines.append(f"  tick {e.tick:4d}  dissolve  '{p['name']}' ({p['purity']:.2f}); {p['members']} fall back {where}")
+        elif e.kind == "visit":
+            offered = " (proposed a cut)" if p.get("proposal") else ""
+            lines.append(f"  tick {e.tick:4d}  visitor   {p['source']}: {p['remark']}{offered}")
         elif e.kind == "merge":
             where = f"into '{p['within']}'" if p.get("within") else "into the open"
             lines.append(f"  tick {e.tick:4d}  undo      '{p['names'][0]}' and '{p['names'][1]}' parted nothing "
@@ -113,12 +116,12 @@ def row(being: Being) -> str:
     featured = sum(1 for e in open_ if e.features is not None)
     bare = len(open_) - featured
     depth = max((ch.depth(c.name) for c in ch.categories.values()), default=0)
-    events = {k: len(being.ledger.of_kind(k)) for k in ("carve", "refine", "dissolve", "merge")}
+    events = {k: len(being.ledger.of_kind(k)) for k in ("carve", "refine", "dissolve", "merge", "visit")}
     state = "alive" if being.alive else "gone "
     return (f"  {being.id:<11} {state}  born {being.born:3d}  age {m.age:4d}   categories {len(ch.categories):3d}  "
             f"deepest {depth}  leaves {len(ch.leaves()):3d}   open {featured:3d}+{bare:<3d}  "
             f"carved {events['carve']:2d}  narrowed {events['refine']:2d}  dissolved {events['dissolve']:2d}  "
-            f"undone {events['merge']:2d}")
+            f"undone {events['merge']:2d}  visits {events['visit']:2d}")
 
 
 def growth(beings: list) -> list:
@@ -216,7 +219,8 @@ def main(argv=None) -> int:
         return 0
 
     print(f"generation {world.generation}; {len(world.living)} of {len(world.beings)} living; "
-          f"law: {world.options.get('law', 'axis')}")
+          f"law: {world.options.get('law', 'axis')}; teachers: "
+          + (f"a visit about every {world.visit_rate} ticks" if world.visit_rate else "none visit"))
     for b in world.beings:
         print(row(b))
     everyone = world.beings + load_gone(gone_dir, default_teachers)

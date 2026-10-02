@@ -56,6 +56,8 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--law", choices=LAW_KINDS, default=None,
                     help="the hidden law of a new world: 'axis' (one cut) or 'corner' (two cuts at once); default axis")
+    ap.add_argument("--visits", type=int, default=None,
+                    help="in a new world, a teacher visits a being about every N ticks; 0 is never (default)")
     ap.add_argument("--god", default=None, help="something to say to them")
     ap.add_argument("--watch", type=int, default=None, help="print one being's ticks (default: the only one)")
     ap.add_argument("--fresh", action="store_true", help="discard any saved world")
@@ -72,6 +74,7 @@ def main(argv=None) -> int:
     else:
         world = World(args.seed, DIMS, default_teachers(DIMS))
         world.options["law"] = args.law or "axis"
+        world.options["visits"] = args.visits or 0
         world.found(args.beings)
         print(f"a new world. nothing has happened yet. {len(world.beings)} being(s), tendencies drawn at random:")
         for b in world.beings:
@@ -82,6 +85,9 @@ def main(argv=None) -> int:
     law_kind = world.options.get("law", "axis")
     if args.law and args.law != law_kind:
         print(f"(this world's law is '{law_kind}' and stays so; --law applies to a new world)")
+    if args.visits is not None and args.visits != world.visit_rate:
+        print(f"(this world's visits stay at {world.visit_rate}; --visits applies to a new world)")
+    print(f"teachers: " + (f"a visit about every {world.visit_rate} ticks" if world.visit_rate else "none visit"))
     law = law_for(world.seed, world.dims, law_kind)
 
     if not world.living:

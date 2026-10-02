@@ -16,7 +16,8 @@ from core import mind as mind_module
 from core.mind import LIFE_START, Body, Disposition, Mind
 from core.persist import load, save
 from core.symbols import SYLLABLES, coin
-from core.teachers import AxisTeacher, default_teachers
+from core.teachers import NearnessTeacher, default_teachers
+from core.channel import best_line
 from core.valence import TruthViolation, Valence, assert_truth
 from shell.seed import build, first_moment, law_for, scatter
 from core.channel import purity
@@ -56,7 +57,7 @@ class TheLaw(unittest.TestCase):
         self.assertEqual({f.hidden > 0 for f in space.forms.values()}, {True, False})
         big = scatter(random.Random(5), law)
         signs = [f.hidden > 0 for f in big.forms.values()]
-        self.assertLess(sum(signs), len(signs) / 2, "positives are the corner, so rarer")
+        self.assertTrue(0.2 < sum(signs) / len(signs) < 0.8, "a corner, not a famine and not a feast")
         with self.assertRaises(ValueError):
             law_for(5, 4, "spiral")
 
@@ -167,13 +168,14 @@ class TheFirstMoment(unittest.TestCase):
         mind.tick(space)
         self.assertEqual(len(mind.puzzles), 1)
         self.assertEqual(mind.puzzles[0].about, u.index)
-        found = channel.experiences[mind.puzzles[0].found]
+        found = channel.experiences[mind.puzzles[0].exp]
         self.assertIsNone(found.features, "it arrived with no surface")
         self.assertEqual(found.token, u.payload["that"])
         self.assertIn(found, channel.open_bucket())
 
     def test_paradox_is_lived_and_nothing_on_the_surface_resolves_it(self):
         ledger, channel, mind, god = make_core(disposition=BOLD)
+        mind.visit_rate = 1   # a visitor every tick, so that the one teacher gets to see the paradox
         space = god.remake(0, lambda: first_moment(random.Random(0), law_for(0, 4)))
         mind.enter(space)
         for _ in range(12):
@@ -182,9 +184,11 @@ class TheFirstMoment(unittest.TestCase):
         self.assertEqual(channel.categories, {})
         signs = {e.sign for e in channel.experiences.values() if e.sign}
         self.assertEqual(signs, {1, -1}, "both signs were lived")
+        twins = [(a, b) for a in channel.experiences.values() for b in channel.experiences.values()
+                 if a.index < b.index and a.features and a.features == b.features and a.sign and b.sign and a.sign != b.sign]
+        self.assertTrue(twins, "the same surface, opposite consequence, lived")
         nearness = [p for p in mind.perspectives if p.source == "nearness"]
         self.assertTrue(nearness)
-        self.assertTrue(all(p.proposal is None for p in nearness))
         self.assertIn("same on every surface", nearness[-1].remark)
 
 
@@ -212,20 +216,47 @@ class PeerTeachers(unittest.TestCase):
         with self.assertRaises(Exception):
             view.experiences = ()
 
-    def test_axis_teacher_proposes_its_best_line(self):
+    def test_the_mind_finds_its_own_best_line(self):
         channel = lived_channel(12)
-        p = AxisTeacher(0).regard(channel.view(), 1)
-        self.assertIsNotNone(p.proposal)
-        self.assertEqual(p.proposal.axis, 0)
-        self.assertLess(abs(p.proposal.threshold), 0.3)
+        rule = best_line(channel.experiences.values(), 0)
+        self.assertIsNotNone(rule)
+        self.assertEqual(rule.axis, 0)
+        self.assertLess(abs(rule.threshold), 0.3)
+        self.assertIsNone(best_line([e for e in channel.experiences.values() if e.sign > 0], 0), "one sign: no line")
 
-    def test_carving_needs_consequence_and_more_than_one_view(self):
+    def test_the_mind_carves_with_no_teacher_at_all(self):
         ledger = Ledger()
         channel = lived_channel(12)
-        lone = Mind(ledger, channel, [AxisTeacher(0)], random.Random(0))
-        lone.consider(1)
-        self.assertEqual(channel.categories, {}, "one view is never enough")
+        mind = Mind(ledger, channel, [], random.Random(0))
+        mind.consider(1)
+        self.assertEqual(len(channel.categories), 2)
+        self.assertEqual(ledger.of_kind("visit"), [])
+        self.assertEqual(ledger.of_kind("carve")[0].payload["after"], "own axis 0")
 
+    def test_nobody_visits_unless_switched_on_and_a_visit_is_only_a_candidate(self):
+        ledger, channel = Ledger(), Channel()
+        quiet = Mind(ledger, channel, default_teachers(2), random.Random(0))
+        space = two_form_space()
+        quiet.enter(space)
+        for _ in range(20):
+            quiet.tick(space)
+        self.assertEqual(ledger.of_kind("visit"), [], "off by default")
+        self.assertEqual(quiet.perspectives, [])
+
+        ledger, channel = Ledger(), Channel()
+        visited = Mind(ledger, channel, default_teachers(2), random.Random(0), visit_rate=1)
+        space = two_form_space()
+        visited.enter(space)
+        for _ in range(6):
+            visited.tick(space)
+        visits = ledger.of_kind("visit")
+        self.assertTrue(visits)
+        self.assertEqual(len(visited.perspectives), len(visits))
+        self.assertTrue(all(v.payload["source"] == "nearness" for v in visits))
+        # the channel is the same whether or not anyone visited: a visit changes nothing by itself
+        self.assertEqual(visited.channel.categories, {})
+
+    def test_carving_happens_in_the_open_and_is_recorded(self):
         ledger = Ledger()
         channel = lived_channel(12)
         mind = Mind(ledger, channel, default_teachers(2), random.Random(0))
@@ -344,6 +375,26 @@ class Tendencies(unittest.TestCase):
             self.assertEqual(getattr(free, name), getattr(frozen, name), name)
         with self.assertRaises(ValueError):
             mind_module.freeze(["courage"])
+
+    def test_a_child_never_overwrites_what_it_inherited(self):
+        teachers = default_teachers(2)
+        parent = Being.found("w", 0, 0, teachers)
+        space = two_form_space()
+        parent.mind.enter(space)
+        for _ in range(6):
+            parent.mind.tick(space)
+        child = parent.beget("w", 1, 1, teachers)
+        inherited = {i: e for i, e in child.channel.experiences.items()}
+        self.assertTrue(inherited)
+        fresh = two_form_space()
+        child.mind.enter(fresh)
+        for _ in range(6):
+            child.mind.tick(fresh)
+        for i, e in inherited.items():
+            self.assertIs(child.channel.experiences[i], e, f"inherited experience {i} was overwritten")
+        self.assertGreater(len(child.channel.experiences), len(inherited), "and it lived new things")
+        with self.assertRaises(ValueError):
+            child.channel.add(Experience(index=next(iter(inherited)), tick=0, features=None))
 
     def test_children_vary_and_carry(self):
         teachers = default_teachers(2)
@@ -496,7 +547,7 @@ class TheDistantOne(unittest.TestCase):
         mind.tick(space)
         self.assertEqual(len(mind.puzzles), 1)
         self.assertEqual(mind.puzzles[0].about, contact.index)
-        found = channel.experiences[mind.puzzles[0].found]
+        found = channel.experiences[mind.puzzles[0].exp]
         self.assertIsNone(found.features)
         self.assertEqual(found.token, "hello")
         self.assertEqual(channel.categories, {})

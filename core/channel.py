@@ -157,6 +157,32 @@ class ChannelView:
         return self.lookup.get(index)
 
 
+def best_line(exps: Iterable[Experience], axis: int) -> Optional[Rule]:
+    """Along one axis, the threshold that best sorts these experiences by sign.
+
+    None if they are all one sign or all sit at one value on the axis.
+    """
+    lived = [e for e in exps if e.sign and e.features is not None]
+    if {e.sign for e in lived} != {1, -1}:
+        return None
+    points = sorted((e.features[axis], e.sign) for e in lived)
+    n = len(points)
+    total_pos = sum(1 for _, sg in points if sg > 0)
+    best = None
+    pos_lo = 0
+    for i in range(1, n):
+        if points[i - 1][1] > 0:
+            pos_lo += 1
+        if points[i][0] == points[i - 1][0]:
+            continue
+        lo_n, hi_n = i, n - i
+        pos_hi = total_pos - pos_lo
+        sorted_right = max(pos_lo, lo_n - pos_lo) + max(pos_hi, hi_n - pos_hi)
+        if best is None or sorted_right > best[0]:
+            best = (sorted_right, (points[i - 1][0] + points[i][0]) / 2)
+    return Rule(axis=axis, threshold=best[1]) if best else None
+
+
 def purity(exps: Iterable[Experience]) -> float:
     """Fraction of valenced members that share the majority sign. 1.0 if none."""
     signs = [e.sign for e in exps if e.sign]
@@ -170,6 +196,16 @@ class Channel:
     def __init__(self) -> None:
         self.experiences: dict[int, Experience] = {}
         self.categories: dict[str, Category] = {}
+
+    def new_index(self) -> int:
+        """The next free experience index.
+
+        Experience indices are the channel's own, not the ledger's. A child
+        carries its parent's channel but starts its own ledger at zero, so
+        ledger indices would collide with inherited experiences and the
+        child's acts would overwrite its inheritance. These never collide.
+        """
+        return max(self.experiences, default=-1) + 1
 
     # -- structure ---------------------------------------------------------
 
@@ -214,6 +250,8 @@ class Channel:
         Returns the name of the category it landed in, or None for the open
         bucket.
         """
+        if exp.index in self.experiences:
+            raise ValueError(f"experience {exp.index} already exists; use new_index()")
         self.experiences[exp.index] = exp
         if exp.features is None:
             return None
