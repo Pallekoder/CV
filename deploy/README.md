@@ -2,8 +2,29 @@
 
 The world runs inside `serve.py` for as long as that process runs and
 saves itself at the end of every generation. To keep it running when no
-machine of yours is on, put it on a small server. Three ways, from least
-to most hands-on.
+machine of yours is on, put it on a server. Four ways; the first is free.
+
+## Hugging Face Spaces (free, no card, from a phone)
+
+A free Space runs the container around the clock. Its disk is wiped when
+it restarts, so the world keeps itself in a private dataset repository on
+the same account: pulled on start, pushed every couple of minutes and on
+shutdown. A free Space sleeps after two days without a visitor and wakes
+on the next visit, picking up where it was; a free uptime monitor that
+opens the page every few minutes keeps it awake for good.
+
+1. Make a Hugging Face account, then under Settings, Access Tokens, make a
+   token of type Write.
+2. With that token in `HF_TOKEN`, from anywhere with Python:
+
+       pip install huggingface_hub
+       python deploy/space.py <your-hf-username> the-world
+
+   It creates the Space and the dataset, sets the secrets, uploads the
+   code, and prints the page's address and the steering token.
+
+The front matter at the top of `README.md` is what tells a Space how to
+run this repository; leave it in place.
 
 ## Fly.io (one small machine, a few dollars a month)
 

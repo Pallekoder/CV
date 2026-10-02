@@ -31,6 +31,7 @@ from core.channel import purity
 from core.many import World
 from core.persist import load, save
 from core.teachers import default_teachers
+from deploy.hub import HubSync
 from shell.seed import LAW_KINDS, build, law_for
 from view import history_lines
 
@@ -64,6 +65,10 @@ class Runner:
         self.steps_wanted = 0
         self.token = args.token or ""          # when set, only requests that carry it may steer the world
         self.stop = threading.Event()
+        state.parent.mkdir(parents=True, exist_ok=True)
+        self.hub = HubSync(state.parent, log=lambda m: print(m, flush=True))
+        if self.hub.enabled and not args.fresh and not state.exists():
+            self.hub.pull()
         if state.exists() and not args.fresh:
             self.world = load(state, default_teachers)
             self.note(f"the world continues at generation {self.world.generation}")
@@ -101,6 +106,7 @@ class Runner:
         for bid in [k for k in self.recent if k not in alive]:
             del self.recent[bid]
         self.prune_sealed()
+        self.hub.push_soon(f"generation {w.generation}")
 
     def prune_sealed(self) -> None:
         """Keep the newest sealed ledgers; the world's record keeps every death."""
@@ -377,14 +383,16 @@ def main(argv=None) -> int:
         runner.stop.set()
         with runner.lock:
             runner.persist()
-        print("\nsaved; the world will continue from here next time")
+        runner.hub.flush()
+        print("\nsaved; the world will continue from here next time", flush=True)
         server.shutdown()
 
     signal.signal(signal.SIGINT, lambda *a: threading.Thread(target=shutdown).start())
     signal.signal(signal.SIGTERM, lambda *a: threading.Thread(target=shutdown).start())
     print(f"the world is running at http://{args.host}:{args.port}  (generation {runner.world.generation}, "
           f"{len(runner.world.living)} living; {runner.speed:g} ticks per second; "
-          f"{'steering needs the token' if runner.token else 'anyone who can reach it can steer it'})", flush=True)
+          f"{'steering needs the token' if runner.token else 'anyone who can reach it can steer it'}"
+          f"{'; kept on the hub at ' + runner.hub.repo if runner.hub.enabled else ''})", flush=True)
     try:
         server.serve_forever()
     finally:

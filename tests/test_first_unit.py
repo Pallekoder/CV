@@ -123,6 +123,23 @@ class Endless(unittest.TestCase):
         self.assertIn(100, channel.experiences)
 
 
+class TheHub(unittest.TestCase):
+    def test_without_a_token_the_hub_stays_dormant_and_unimported(self):
+        import os, sys
+        from deploy.hub import HubSync
+        saved = {k: os.environ.pop(k) for k in ("HF_TOKEN", "HF_REPO") if k in os.environ}
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                hub = HubSync(Path(d))
+                self.assertFalse(hub.enabled)
+                self.assertFalse(hub.pull())
+                hub.push_soon("x")
+                hub.flush()
+            self.assertNotIn("huggingface_hub", sys.modules)
+        finally:
+            os.environ.update(saved)
+
+
 class Irreversibility(unittest.TestCase):
     def test_ledger_exposes_no_way_to_edit_or_remove(self):
         public = {n for n in dir(Ledger) if not n.startswith("_")}

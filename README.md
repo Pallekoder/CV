@@ -1,3 +1,13 @@
+---
+title: The world
+emoji: "●"
+colorFrom: purple
+colorTo: gray
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # Growing minds from almost nothing
 
 Read `BRIEF.md` first. It is the project, in the words it was handed over
