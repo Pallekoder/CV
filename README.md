@@ -22,12 +22,14 @@ This file says what exists and how to run it.
 
 ## The window
 
-    python serve.py                   # then open http://localhost:8000
+    python serve.py --open            # starts the world and opens the page
     python serve.py --fresh --beings 12 --law corner --speed 4
 
 The world runs inside that process for as long as it runs, generation
 after generation, and saves itself at the end of every generation, so a
-restart resumes where it was. Leave it running and come back. The page
+restart resumes where it was. Leave it running and come back; closing
+the terminal stops it, and the next start continues from the last
+finished generation. The page
 shows every being as a creature sized by its life and coloured by its
 energy, with its last act; the selected being's space, with what it has
 lived as green and red dots, the forms still there, and its categories

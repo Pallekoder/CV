@@ -22,6 +22,7 @@ import signal
 import sys
 import threading
 import time
+import webbrowser
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -371,6 +372,7 @@ def main(argv=None) -> int:
     ap.add_argument("--first-ticks", type=int, default=12)
     ap.add_argument("--speed", type=float, default=env("WORLD_SPEED", 4.0), help="ticks per second to start with")
     ap.add_argument("--paused", action="store_true")
+    ap.add_argument("--open", action="store_true", help="open the page in your browser once it is up")
     ap.add_argument("--token", default=env("WORLD_TOKEN", ""),
                     help="if set, the page must present this to steer the world; watching needs nothing")
     args = ap.parse_args(argv)
@@ -393,6 +395,8 @@ def main(argv=None) -> int:
           f"{len(runner.world.living)} living; {runner.speed:g} ticks per second; "
           f"{'steering needs the token' if runner.token else 'anyone who can reach it can steer it'}"
           f"{'; kept on the hub at ' + runner.hub.repo if runner.hub.enabled else ''})", flush=True)
+    if args.open:
+        threading.Timer(1.0, lambda: webbrowser.open(f"http://{'localhost' if args.host in ('127.0.0.1', '0.0.0.0') else args.host}:{args.port}")).start()
     try:
         server.serve_forever()
     finally:
