@@ -19,6 +19,7 @@ decisions are open.
 | The distant figure, rare | `core/god.py` | `speak` is refused inside a minimum gap, and the refusal is recorded as silence. Words land as a featureless experience, like the mind's own forgotten sounds. |
 | The seed moment | `shell/seed.py::first_moment`, `core/mind.py::utter`, `::reflect` | Two forms nearly alike and alike in consequence; two identical and opposite. The first ledger entry after entering is `notice`. A surprise is hashed into syllables; the syllables are written; the state is dropped; the next tick finds the sound with no cause and holds it. |
 | The environment | `shell/` | Forms with an unnamed numeric surface and a hidden consequence, under one hidden law per world seed. Built per generation and thrown away. |
+| Watching, slowing down, interacting | `serve.py`, `ui/index.html` | The world ticks in lockstep inside a long-running process, one tick for every living being per step, and saves itself every generation. The page reads its state and sends controls: speed, pause, step, the teachers' visit rate, the distant one's words, a new world. Nothing the page shows reaches the minds. |
 | The discipline | `NOTEBOOK.md` | Predictions before each run, results after, surprises named. Started at unit three; the first two units are reconstructed and say so. |
 
 ## The units

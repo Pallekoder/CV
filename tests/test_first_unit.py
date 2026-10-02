@@ -512,6 +512,27 @@ class TheMany(unittest.TestCase):
         self.assertTrue(all(b.parent is None for b in world.beings), "strangers, not heirs")
         self.assertTrue(all(b.alive for b in world.beings))
 
+    def test_ticking_in_lockstep_is_the_same_world(self):
+        law = law_for(9, 4)
+
+        def builder(b, g):
+            return build("first" if g == 0 else "scatter", random.Random(f"9:{g}:{b.id}"), law)
+
+        whole = World(9, 4, default_teachers(4))
+        whole.found(4)
+        stepped = World(9, 4, default_teachers(4))
+        stepped.found(4)
+        for _ in range(3):
+            g = whole.generation
+            whole.live(lambda b, g=g: builder(b, g), 15)
+            whole.select(refound=True)
+            stepped.begin(lambda b, g=g: builder(b, g), 15)
+            while stepped.in_generation:
+                stepped.step()
+            stepped.finish()
+            stepped.select(refound=True)
+        self.assertEqual(whole.to_dict(), stepped.to_dict())
+
     def test_a_small_world_runs_and_every_chain_holds(self):
         teachers = default_teachers(4)
         world = World(3, 4, teachers)

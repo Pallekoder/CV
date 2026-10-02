@@ -38,6 +38,10 @@ class World:
         self.sealed: set = set()        # ids of the dead already recorded
         self.beings: list = []
         self.options: dict = {}         # shell choices the runner wants kept with the world
+        self.shells: dict = {}          # being id -> its space, while a generation is under way
+        self.forms: dict = {}           # being id -> what its shell held when built, for watching
+        self.tick_in_generation = 0
+        self.ticks_per_generation = 0
 
     @property
     def living(self) -> list:
@@ -62,22 +66,56 @@ class World:
 
     # -- a generation ------------------------------------------------------
 
-    def live(self, builder: Callable[[Being], object], ticks: int, watch: Optional[int] = None) -> list:
-        """Every living being gets its own shell and lives `ticks` ticks in it."""
+    def set_visits(self, rate: int) -> None:
+        """Teachers may visit from now on, about every `rate` ticks; 0 is never."""
+        self.options["visits"] = int(rate)
+        for b in self.beings:
+            b.mind.visit_rate = int(rate)
+
+    def begin(self, builder: Callable[[Being], object], ticks: int) -> None:
+        """Every living being gets its own shell for this generation."""
         g = self.generation
-        lines = []
-        for i, b in enumerate(self.beings):
+        self.shells, self.forms = {}, {}
+        for b in self.beings:
             if not b.alive:
                 continue
             space = self.god.remake(g, lambda: builder(b))
             b.mind.enter(space)
-            for _ in range(ticks):
-                out = b.mind.tick(space)
-                if watch == i:
-                    lines += ["  " + line for line in out]
-                if not b.alive:
-                    break
-        self.ledger.append(g, "lived", ticks=ticks, living=len(self.living), beings=len(self.beings))
+            self.shells[b.id] = space
+            self.forms[b.id] = {fid: (f.surface, f.hidden) for fid, f in space.forms.items()}
+        self.tick_in_generation = 0
+        self.ticks_per_generation = ticks
+
+    @property
+    def in_generation(self) -> bool:
+        return bool(self.shells) and self.tick_in_generation < self.ticks_per_generation
+
+    def step(self, watch: Optional[int] = None) -> dict:
+        """One tick for every living being in its shell. Returns each being's lines."""
+        out: dict = {}
+        for i, b in enumerate(self.beings):
+            space = self.shells.get(b.id)
+            if space is None or not b.alive:
+                continue
+            out[b.id] = b.mind.tick(space)
+        self.tick_in_generation += 1
+        return out
+
+    def finish(self) -> None:
+        """Close the generation: the record notes it, the shells are thrown away."""
+        self.ledger.append(self.generation, "lived", ticks=self.ticks_per_generation,
+                           living=len(self.living), beings=len(self.beings))
+        self.shells, self.forms = {}, {}
+
+    def live(self, builder: Callable[[Being], object], ticks: int, watch: Optional[int] = None) -> list:
+        """Every living being gets its own shell and lives `ticks` ticks in it."""
+        self.begin(builder, ticks)
+        lines = []
+        while self.tick_in_generation < self.ticks_per_generation:
+            out = self.step()
+            if watch is not None and watch < len(self.beings):
+                lines += ["  " + line for line in out.get(self.beings[watch].id, [])]
+        self.finish()
         return lines
 
     def select(self, refound: bool, gone_dir=None) -> dict:

@@ -10,6 +10,24 @@ review: what a teacher is and is not here, and what is still undecided.
 
 This file says what exists and how to run it.
 
+## The window
+
+    python serve.py                   # then open http://localhost:8000
+    python serve.py --fresh --beings 12 --law corner --speed 4
+
+The world runs inside that process for as long as it runs, generation
+after generation, and saves itself at the end of every generation, so a
+restart resumes where it was. Leave it running and come back. The page
+shows every being as a creature sized by its life and coloured by its
+energy, with its last act; the selected being's space, with what it has
+lived as green and red dots, the forms still there, and its categories
+drawn as boxes on any two axes you choose; its channel as a table, with
+sub-categories indented and inherited ones marked; the history of its
+cuts; its last ticks; and the generations so far. The controls: play,
+pause, step one tick, a speed dial from one tick every twenty seconds to
+a thousand a second, how often teachers visit (zero is never), a line to
+say something to all who live, and a form to begin a new world.
+
     python run.py                                 # one mind, the seed space, the first moment
     python run.py --generations 3                 # carry it on through fresh shells
     python run.py --beings 12 --generations 20    # the many
@@ -79,6 +97,8 @@ bucket, each tree, the history of every cut, and growth by generation.
       space.py       forms with an unnamed surface and a hidden consequence
       seed.py        the hidden law, the first moment, a scatter space
     run.py           one run, one or many beings, a transcript
+    serve.py         the window: a world that keeps running, watched in a browser
+    ui/index.html    the page the window serves
     view.py          look into the channels: boxes, trees, histories, growth
     compare.py       the experiment: did being around change anything?
     tests/           what the units guarantee
