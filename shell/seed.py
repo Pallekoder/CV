@@ -73,7 +73,7 @@ def first_moment(rng: random.Random, law: Law, dims: int = 4) -> Space:
     return Space(forms, dims=dims, label=coin("first", base, law))
 
 
-def scatter(rng: random.Random, law: Law, n: int = 12, dims: int = 4) -> Space:
+def scatter(rng: random.Random, law: Law, n: int = 16, dims: int = 4) -> Space:
     forms = []
     for i in range(n):
         surface = _vec(rng, dims)

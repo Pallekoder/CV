@@ -73,6 +73,10 @@ class Ledger:
     def of_kind(self, kind: str) -> list[Entry]:
         return [e for e in self._entries if e.kind == kind]
 
+    def since(self, index: int) -> list[Entry]:
+        """Entries from `index` on. Append-only means this is always complete."""
+        return list(self._entries[index:])
+
     def __len__(self) -> int:
         return len(self._entries)
 

@@ -1,4 +1,4 @@
-"""Tests for the first unit. Run with:  python -m unittest -v"""
+"""Tests for the first two units. Run with:  python -m unittest -v"""
 from __future__ import annotations
 
 import json
@@ -7,23 +7,28 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from core.being import Being
 from core.channel import Channel, Experience, Rule
 from core.god import God
 from core.ledger import Ledger
-from core.mind import Mind
+from core.many import World
+from core.mind import LIFE_START, Body, Disposition, Mind
 from core.persist import load, save
 from core.symbols import SYLLABLES, coin
 from core.teachers import AxisTeacher, default_teachers
 from core.valence import TruthViolation, Valence, assert_truth
-from shell.seed import first_moment, law_for, scatter
+from shell.seed import build, first_moment, law_for, scatter
 from shell.space import Form, Gone, Space
 
+CAUTIOUS = Disposition(novelty=1.0, echo=0.0, kin=0.0, bold=-1.0, heat=0.01)   # touches the new
+BOLD = Disposition(novelty=1.0, echo=0.0, kin=0.0, bold=1.0, heat=0.01)        # consumes the new
 
-def make_core(seed: int = 0, dims: int = 4):
+
+def make_core(seed: int = 0, dims: int = 4, disposition=None):
     rng = random.Random(seed)
     ledger, channel = Ledger(), Channel()
-    god = God(ledger)
-    mind = Mind(ledger, channel, default_teachers(dims), rng)
+    god = God(Ledger())   # the distant one keeps the world's record, not the mind's
+    mind = Mind(ledger, channel, default_teachers(dims), rng, disposition)
     return ledger, channel, mind, god
 
 
@@ -92,11 +97,20 @@ class Irreversibility(unittest.TestCase):
         mind.act(space, "consume", "bad", (0.0, 0.0), 1)
         life1 = mind.body.life
         self.assertLess(life1, life0)
-        for _ in range(5):
-            mind.body.regen()
         mind.act(space, "consume", "good", (1.0, 1.0), 2)
         self.assertEqual(mind.body.life, life1)
         self.assertGreater(mind.body.energy, 0)
+
+    def test_existing_costs_and_starving_takes_life(self):
+        body = Body(life=10.0, energy=0.05)
+        self.assertTrue(body.upkeep())
+        self.assertEqual(body.energy, 0.0)
+        self.assertLess(body.life, 10.0)
+        starved = body.life
+        body.live(Valence(+0.5))
+        self.assertGreater(body.energy, 0.0)
+        self.assertFalse(body.upkeep())
+        self.assertEqual(body.life, starved, "a positive feeds; it does not heal")
 
 
 class TheFirstMoment(unittest.TestCase):
@@ -118,12 +132,12 @@ class TheFirstMoment(unittest.TestCase):
         mind.enter(space)
         mind.tick(space)
         kinds = [e.kind for e in ledger]
-        self.assertEqual(kinds[0], "shell")
+        self.assertEqual(kinds[0], "enter")
         self.assertEqual(kinds[1], "notice")
         self.assertEqual(len(ledger[1].payload["identical"]), 1)
 
     def test_utterance_keeps_the_that_and_loses_the_why(self):
-        ledger, channel, mind, god = make_core()
+        ledger, channel, mind, god = make_core(disposition=CAUTIOUS)
         space = god.remake(0, lambda: first_moment(random.Random(0), law_for(0, 4)))
         mind.enter(space)
         mind.tick(space)
@@ -142,10 +156,10 @@ class TheFirstMoment(unittest.TestCase):
         self.assertIn(found, channel.open_bucket())
 
     def test_paradox_is_lived_and_nothing_on_the_surface_resolves_it(self):
-        ledger, channel, mind, god = make_core()
+        ledger, channel, mind, god = make_core(disposition=BOLD)
         space = god.remake(0, lambda: first_moment(random.Random(0), law_for(0, 4)))
         mind.enter(space)
-        for _ in range(10):
+        for _ in range(12):
             mind.tick(space)
         self.assertTrue(space.empty)
         self.assertEqual(channel.categories, {})
@@ -224,6 +238,109 @@ class PeerTeachers(unittest.TestCase):
         self.assertTrue(ledger.of_kind("utterance"), "a dissolution is a surprise")
 
 
+class Tendencies(unittest.TestCase):
+    def test_every_tendency_can_be_born_with_either_sign(self):
+        rng = random.Random(5)
+        draws = [Disposition.random(rng) for _ in range(300)]
+        for name in ("novelty", "echo", "kin", "bold"):
+            values = [getattr(d, name) for d in draws]
+            self.assertTrue(any(v > 0 for v in values), name)
+            self.assertTrue(any(v < 0 for v in values), name)
+        self.assertTrue(all(d.heat > 0 for d in draws))
+
+    def test_no_sign_is_given_the_tendency_decides(self):
+        hurt, far = (0.0, 0.0), (1.0, 1.0)
+        for echo, goes_back in ((-1.0, True), (+1.0, False)):
+            ledger, channel = Ledger(), Channel()
+            channel.add(Experience(index=0, tick=0, features=hurt, token="x", valence=-0.8))
+            d = Disposition(novelty=0.0, echo=echo, kin=0.0, bold=0.0, heat=0.001)
+            mind = Mind(ledger, channel, [], random.Random(0), d)
+            space = Space([Form("hurt", hurt, -0.8), Form("far", far, +0.8)], dims=2, label="t")
+            mind.enter(space)
+            obs = space.perceive()
+            picks = {mind.choose(obs, mind.notice(obs, 1))[1] for _ in range(5)}
+            self.assertEqual("hurt" in picks, goes_back, f"echo {echo:+}")
+
+    def test_children_vary_and_carry(self):
+        teachers = default_teachers(2)
+        parent = Being.found("w", 0, 0, teachers)
+        space = two_form_space()
+        parent.mind.enter(space)
+        for _ in range(3):
+            parent.mind.tick(space)
+        child = parent.beget("w", 1, 1, teachers)
+        self.assertNotEqual(child.mind.disposition, parent.mind.disposition)
+        self.assertEqual(child.channel.to_dict()["experiences"], parent.channel.to_dict()["experiences"])
+        self.assertEqual(child.mind.age, 0)
+        self.assertEqual(child.mind.body.life, LIFE_START)
+        first = child.ledger[0]
+        self.assertEqual(first.kind, "born")
+        self.assertEqual(first.payload["parent"], parent.id)
+        self.assertEqual(first.payload["parent_chain"], parent.ledger[-1].hash)
+        self.assertTrue(is_coined(child.id))
+
+
+def lethal_builder(b):
+    return Space([Form("a", (0.0, 0.0), -0.5), Form("b", (1.0, 1.0), 0.5)], dims=2, label="t")
+
+
+class TheMany(unittest.TestCase):
+    def test_the_dead_are_sealed_and_replaced_by_children_of_the_living(self):
+        world = World(7, 2, default_teachers(2))
+        world.found(4)
+        world.live(lethal_builder, 3)
+        ids = [b.id for b in world.beings]
+        world.beings[1].mind.body.life = 0.0
+        world.beings[3].mind.body.life = 0.0
+        with tempfile.TemporaryDirectory() as d:
+            report = world.select(refound=True, gone_dir=d)
+            sealed_files = sorted(p.name for p in Path(d).iterdir())
+        self.assertEqual([b.id for b in report["died"]], [ids[1], ids[3]])
+        self.assertEqual(len(report["born"]), 2)
+        self.assertEqual(sealed_files, sorted([f"{ids[1]}.json", f"{ids[3]}.json"]))
+        self.assertEqual([world.beings[0].id, world.beings[2].id], [ids[0], ids[2]], "the living keep their places")
+        died = world.ledger.of_kind("died")
+        self.assertEqual([e.payload["being"] for e in died], [ids[1], ids[3]])
+        for e, b in zip(died, report["died"]):
+            self.assertEqual(e.payload["chain"], b.ledger[-1].hash)
+        for child in report["born"]:
+            self.assertIn(child.parent, (ids[0], ids[2]))
+            self.assertTrue(child.alive)
+            self.assertEqual(child.mind.age, 0)
+        self.assertEqual(world.generation, 1)
+
+    def test_nobody_left_is_recorded_either_way(self):
+        world = World(8, 2, default_teachers(2))
+        world.found(3)
+        for b in world.beings:
+            b.mind.body.life = 0.0
+        ids = [b.id for b in world.beings]
+        report = world.select(refound=False)
+        self.assertTrue(report["extinct"])
+        self.assertEqual(len(world.ledger.of_kind("extinction")), 1)
+        self.assertEqual([b.id for b in world.beings], ids, "the dead stay where they fell")
+        again = world.select(refound=True)
+        self.assertEqual(again["died"], [], "the dead are sealed once")
+        self.assertEqual(len(again["born"]), 3)
+        self.assertTrue(all(b.parent is None for b in world.beings), "strangers, not heirs")
+        self.assertTrue(all(b.alive for b in world.beings))
+
+    def test_a_small_world_runs_and_every_chain_holds(self):
+        teachers = default_teachers(4)
+        world = World(3, 4, teachers)
+        world.found(6)
+        law = law_for(3, 4)
+        for _ in range(3):
+            g = world.generation
+            kind = "first" if g == 0 else "scatter"
+            world.live(lambda b, g=g, kind=kind: build(kind, random.Random(f"3:{g}:{b.id}"), law), 15)
+            world.select(refound=True)
+        self.assertEqual(len(world.beings), 6)
+        self.assertTrue(world.ledger.verify())
+        self.assertTrue(all(b.ledger.verify() for b in world.beings))
+        self.assertEqual(len(world.ledger.of_kind("lived")), 3)
+
+
 class TheDistantOne(unittest.TestCase):
     def test_rarely_reachable(self):
         ledger = Ledger()
@@ -249,7 +366,7 @@ class TheDistantOne(unittest.TestCase):
         self.assertEqual(channel.categories, {})
 
     def test_remaking_the_shell_keeps_the_core(self):
-        ledger, channel, mind, god = make_core()
+        ledger, channel, mind, god = make_core(disposition=BOLD)
         space = god.remake(0, lambda: first_moment(random.Random(0), law_for(0, 4)))
         mind.enter(space)
         for _ in range(3):
@@ -259,7 +376,9 @@ class TheDistantOne(unittest.TestCase):
         new = god.remake(mind.age, lambda: scatter(random.Random(1), law_for(0, 4)))
         mind.enter(new)
         self.assertEqual(god.shells_built, 2)
+        self.assertEqual(len(god.ledger.of_kind("shell")), 2)
         self.assertEqual(len(ledger), n_ledger + 1)
+        self.assertEqual(ledger[-1].kind, "enter")
         self.assertEqual(len(channel.experiences), n_exp)
         self.assertEqual(len(mind.puzzles), n_puzzles)
         self.assertEqual(mind.touched, {})
@@ -267,22 +386,27 @@ class TheDistantOne(unittest.TestCase):
 
 
 class Persistence(unittest.TestCase):
-    def test_core_survives_save_and_load(self):
-        ledger, channel, mind, god = make_core()
-        space = god.remake(0, lambda: first_moment(random.Random(0), law_for(0, 4)))
-        mind.enter(space)
-        for _ in range(6):
-            mind.tick(space)
+    def test_a_saved_world_continues_exactly_where_it_was(self):
+        law = law_for(4, 4)
+
+        def generation(world):
+            g = world.generation
+            kind = "first" if g == 0 else "scatter"
+            world.live(lambda b, g=g, kind=kind: build(kind, random.Random(f"4:{g}:{b.id}"), law), 10)
+            world.select(refound=True)
+
+        straight = World(4, 4, default_teachers(4))
+        straight.found(3)
+        generation(straight)
         with tempfile.TemporaryDirectory() as d:
-            path = Path(d) / "core.json"
-            save(path, ledger=ledger, channel=channel, mind=mind, god=god, dims=4)
-            ledger2, channel2, mind2, god2, dims = load(path, default_teachers, random.Random(0))
-        self.assertEqual(dims, 4)
-        self.assertEqual(ledger.to_list(), ledger2.to_list())
-        self.assertEqual(channel.to_dict(), channel2.to_dict())
-        self.assertEqual(mind.to_dict(), mind2.to_dict())
-        self.assertEqual(god.to_dict(), god2.to_dict())
-        self.assertTrue(ledger2.verify())
+            path = Path(d) / "world.json"
+            save(path, straight)
+            resumed = load(path, default_teachers)
+        self.assertEqual(straight.to_dict(), resumed.to_dict())
+        generation(straight)
+        generation(resumed)
+        self.assertEqual(straight.to_dict(), resumed.to_dict(), "a pause changes nothing")
+        self.assertTrue(resumed.ledger.verify())
 
 
 class CoinedNames(unittest.TestCase):

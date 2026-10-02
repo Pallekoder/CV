@@ -2,15 +2,18 @@
 
 What it does each tick, in order:
 
-  reflect   look back through the ledger for things it did or received whose
-            cause is nowhere in what it has lived; take each one in as a
-            featureless experience and hold it as a puzzle.
-  notice    perceive the forms and compute their differences. This is always
-            its first outward act.
-  choose    pick something to do. The only drive coded here is curiosity:
-            go where nothing has been lived and where no category reaches.
-            There is no preference for positive over negative anywhere in
-            this file. The body's physics are the only orientation.
+  upkeep    existing costs energy. With no energy it starves, and starving
+            takes life, which never comes back.
+  reflect   look back through its own ledger for things it did or received
+            whose cause is nowhere in what it has lived; take each one in
+            as a featureless experience and hold it as a puzzle.
+  notice    perceive the forms and compute their differences. This is
+            always its first outward act.
+  choose    weigh every possible act by its tendencies and draw one. The
+            tendencies are heritable, and every one of them may be negative
+            at birth: a mind can be born drawn toward what hurt it. Nothing
+            here says which way is right. The body's physics, and whether
+            the mind is still around later, are the only judges.
   act       touch or consume, and live the consequence. Loss is permanent.
   utter     when something surprises it, emit a coined sound. The sound is
             written down. The state that produced it is not.
@@ -18,12 +21,14 @@ What it does each tick, in order:
             proposals and doubts against lived consequence before carving
             or dissolving anything.
 
-Body physics (magnitudes tunable, only the sign of valence is fixed):
-negatives take from `life`, which never comes back. Positives add to
-`energy`, which acting spends. Life at zero is the end.
+Body physics (magnitudes tunable; only the sign of valence is fixed):
+negatives take from `life`, which nothing restores. Positives add to
+`energy`. Existing costs energy every tick, acting costs more, and a body
+with no energy loses life until it finds some. Life at zero is the end.
 """
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass, field
 from typing import Optional
@@ -36,13 +41,17 @@ from .valence import Valence
 
 LIFE_START = 10.0
 ENERGY_START = 6.0
-ENERGY_MAX = 8.0
-ENERGY_REGEN = 0.5
-ENERGY_GAIN = 4.0  # energy per unit of positive valence
-COST = {"touch": 1.0, "consume": 2.0}
+ENERGY_MAX = 20.0
+UPKEEP = 0.08        # what merely existing costs, per tick
+STARVE = 0.3         # life lost per tick spent with no energy
+ENERGY_GAIN = 4.0    # energy per unit of positive valence
+COST = {"touch": 0.5, "consume": 1.0, "rest": 0.0}
 
-MIN_VIEWS = 2       # curiosity: never carve on a single view
-MIN_SIDE = 2        # a side with fewer lived members cannot be carved
+ECHO_SCALE = 0.3     # how far away a lived consequence is still felt
+VARIATION = 0.15     # how far a child's tendencies drift from its parent's
+
+MIN_VIEWS = 2        # never carve on a single view
+MIN_SIDE = 2         # a side with fewer lived members cannot be carved
 COMMIT_PURITY = 0.8
 DOUBT_PURITY = 0.75
 SAME = 1e-9
@@ -53,14 +62,19 @@ class Body:
     life: float = LIFE_START
     energy: float = ENERGY_START
 
-    def regen(self) -> None:
-        self.energy = min(ENERGY_MAX, self.energy + ENERGY_REGEN)
+    def upkeep(self) -> bool:
+        """Existing costs. Returns True if the body is starving."""
+        self.energy = max(0.0, self.energy - UPKEEP)
+        if self.energy > 0.0:
+            return False
+        self.life = max(0.0, self.life - STARVE)
+        return True
 
     def can_afford(self, act: str) -> bool:
         return self.energy >= COST[act]
 
     def spend(self, act: str) -> None:
-        self.energy -= COST[act]
+        self.energy = max(0.0, self.energy - COST[act])
 
     def live(self, v: Valence) -> None:
         if v.sign < 0:
@@ -78,6 +92,54 @@ class Body:
     @classmethod
     def from_dict(cls, d: dict) -> "Body":
         return cls(life=d["life"], energy=d["energy"])
+
+
+@dataclass(frozen=True)
+class Disposition:
+    """Heritable tendencies. No sign is given for any of them.
+
+    novelty  pull toward (or away from) what has not been lived
+    echo     pull toward (or away from) what nearby consequences felt like
+    kin      pull toward (or away from) what the admitting category felt like
+    bold     pull toward consuming rather than touching
+    heat     how much chance is left in the draw
+    """
+
+    novelty: float
+    echo: float
+    kin: float
+    bold: float
+    heat: float
+
+    @classmethod
+    def random(cls, rng: random.Random) -> "Disposition":
+        return cls(
+            novelty=rng.uniform(-1, 1),
+            echo=rng.uniform(-1, 1),
+            kin=rng.uniform(-1, 1),
+            bold=rng.uniform(-1, 1),
+            heat=rng.uniform(0.05, 0.5),
+        )
+
+    def vary(self, rng: random.Random) -> "Disposition":
+        return Disposition(
+            novelty=self.novelty + rng.gauss(0, VARIATION),
+            echo=self.echo + rng.gauss(0, VARIATION),
+            kin=self.kin + rng.gauss(0, VARIATION),
+            bold=self.bold + rng.gauss(0, VARIATION),
+            heat=max(0.02, self.heat + rng.gauss(0, VARIATION / 2)),
+        )
+
+    def to_dict(self) -> dict:
+        return {"novelty": self.novelty, "echo": self.echo, "kin": self.kin, "bold": self.bold, "heat": self.heat}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Disposition":
+        return cls(**d)
+
+    def __str__(self) -> str:
+        return (f"nov {self.novelty:+.2f}  echo {self.echo:+.2f}  kin {self.kin:+.2f}  "
+                f"bold {self.bold:+.2f}  heat {self.heat:.2f}")
 
 
 @dataclass(frozen=True)
@@ -116,11 +178,13 @@ def _dist(a: tuple, b: tuple) -> float:
 
 
 class Mind:
-    def __init__(self, ledger: Ledger, channel: Channel, teachers: list, rng: random.Random) -> None:
+    def __init__(self, ledger: Ledger, channel: Channel, teachers: list, rng: random.Random,
+                 disposition: Optional[Disposition] = None) -> None:
         self.ledger = ledger
         self.channel = channel
         self.teachers = teachers
         self.rng = rng
+        self.disposition = disposition if disposition is not None else Disposition.random(rng)
         self.body = Body()
         self.age = 0
         self.perspectives: list[Perspective] = []
@@ -128,28 +192,34 @@ class Mind:
         self.accounted: set = set()   # ledger indices already taken in by reflect
         self.touched: dict = {}       # per-shell working memory: form id -> ledger index
         self._considered_at = 0       # how many lived consequences there were at the last consult
+        self._scanned = 0             # how far reflect has read its own ledger
 
-    # -- shells ------------------------------------------------------------
+    # -- shells and contacts -------------------------------------------------
 
     def enter(self, space) -> None:
         """A new shell. Working memory of forms resets; nothing else does."""
         self.touched = {}
+        self.ledger.append(self.age, "enter", shell=getattr(space, "label", None),
+                           forms=len(getattr(space, "forms", {})))
 
     def receive(self, p: Perspective) -> None:
-        """Take in a perspective from outside the peer circle (the distant one)."""
+        """Take in words from outside the peer circle. They land in the ledger
+        like any other thing that happened, for reflect to find."""
+        self.ledger.append(self.age, "contact", text=p.remark, source=p.source)
         self.perspectives.append(p)
 
-    # -- one tick ----------------------------------------------------------
+    # -- one tick --------------------------------------------------------------
 
     def tick(self, space) -> list:
         self.age += 1
         t = self.age
         lines = [f"tick {t}"]
-        self.body.regen()
+        if self.body.upkeep():
+            lines.append(f"  starving: life {self.body.life:.2f}")
         lines += self.reflect(t)
 
         if not self.body.alive:
-            lines.append("  nothing moves.")
+            lines.append("  life has run out.")
             return lines
 
         if space.empty:
@@ -159,8 +229,8 @@ class Mind:
             contrasts = self.notice(obs, t)
             lines.append("  " + self._describe(contrasts, len(obs)))
             kind, fid = self.choose(obs, contrasts)
-            if not self.body.can_afford(kind):
-                lines.append(f"  too little energy to {kind} ({self.body.energy:.1f}).")
+            if kind == "rest":
+                lines.append(f"  rests.   life {self.body.life:.2f}  energy {self.body.energy:.2f}")
             else:
                 before = sum(1 for e in self.channel.experiences.values() if e.valence is not None)
                 surface = dict(obs)[fid]
@@ -188,7 +258,9 @@ class Mind:
 
     def reflect(self, t: int) -> list:
         lines = []
-        for e in self.ledger:
+        entries = self.ledger.since(self._scanned)
+        self._scanned = len(self.ledger)
+        for e in entries:
             if e.kind not in ("utterance", "contact") or e.index in self.accounted:
                 continue
             token = e.payload.get("that") or e.payload.get("text") or ""
@@ -200,6 +272,7 @@ class Mind:
             lines.append(
                 f'  reflect: finds {source} "{token}" at #{e.index} with no cause in anything lived -> puzzle #{found.index}'
             )
+        self._scanned = len(self.ledger)
         return lines
 
     # -- notice ------------------------------------------------------------
@@ -234,30 +307,60 @@ class Mind:
 
     # -- choose ------------------------------------------------------------
 
-    def _lived_surfaces(self) -> list:
-        return [e.features for e in self.channel.experiences.values() if e.features is not None]
+    def _felt(self, surface: tuple, lived: list) -> tuple:
+        """How new this surface is, and what consequences near it felt like.
 
-    def _covered(self, surface: tuple) -> bool:
-        return any(c.rule.side(surface) == c.side for c in self.channel.categories.values())
+        The echo is a distance-weighted mean of lived consequence, shrunk
+        toward nothing when nothing lived is anywhere near.
+        """
+        if not lived:
+            return 1.0, 0.0
+        nearest = math.inf
+        num = den = 0.0
+        for features, valence in lived:
+            d = _dist(surface, features)
+            nearest = min(nearest, d)
+            w = math.exp(-d / ECHO_SCALE)
+            num += w * valence
+            den += w
+        return min(nearest, 1.0), num / (den + 1.0)
+
+    def _kin(self, surface: tuple) -> float:
+        """What the category that admits this surface has felt like, if any."""
+        for cat in self.channel.categories.values():
+            if cat.rule.side(surface) == cat.side:
+                lived = [self.channel.experiences[i].valence for i in cat.members
+                         if self.channel.experiences[i].valence is not None]
+                return sum(lived) / len(lived) if lived else 0.0
+        return 0.0
 
     def choose(self, obs: list, c: Contrasts) -> tuple:
-        surfaces = dict(obs)
-        ids = sorted(surfaces)
-        untouched = [f for f in ids if f not in self.touched]
-        if untouched:
-            lived = self._lived_surfaces()
-            if lived:
-                # novelty: the untouched form farthest from everything lived
-                fid = max(untouched, key=lambda f: min(_dist(surfaces[f], s) for s in lived))
-            elif c.nearest:
-                # nothing lived yet: go to where the world repeats itself
-                fid = c.nearest[1]
-            else:
-                fid = untouched[0]
-            return "touch", fid
-        uncovered = [f for f in ids if not self._covered(surfaces[f])]
-        pool = uncovered or ids
-        return "consume", self.rng.choice(pool)
+        """Weigh every affordable act by the tendencies and draw one.
+
+        Resting always scores nothing, so a mind whose tendencies make every
+        act look worse than nothing will rest. Nothing here prefers one sign
+        of consequence over the other; the tendencies decide, and they were
+        drawn at random or inherited.
+        """
+        d = self.disposition
+        lived = [(e.features, e.valence) for e in self.channel.experiences.values()
+                 if e.features is not None and e.valence is not None]
+        options = [("rest", None, 0.0)]
+        for fid, surface in obs:
+            novelty, echo = self._felt(surface, lived)
+            kin = self._kin(surface)
+            for act in ("touch", "consume"):
+                if act == "touch" and fid in self.touched:
+                    continue
+                if not self.body.can_afford(act):
+                    continue
+                score = d.novelty * novelty + d.echo * echo + d.kin * kin + (d.bold if act == "consume" else 0.0)
+                options.append((act, fid, score))
+        heat = max(d.heat, 1e-3)
+        top = max(o[2] for o in options)
+        weights = [math.exp((o[2] - top) / heat) for o in options]
+        act, fid, _ = self.rng.choices(options, weights=weights, k=1)[0]
+        return act, fid
 
     # -- act ---------------------------------------------------------------
 
@@ -347,7 +450,7 @@ class Mind:
                     lines.append(f"  keeps '{p.doubt}' ({pur:.2f})")
 
         # proposals: carve only what consequence supports, and never on one view
-        if len(views) < MIN_VIEWS or not enough:
+        if len(views) < MIN_VIEWS:
             return lines
         view = self.channel.view()
         lived_open = view.valenced(view.open)
@@ -388,16 +491,20 @@ class Mind:
         return {
             "age": self.age,
             "body": self.body.to_dict(),
+            "disposition": self.disposition.to_dict(),
             "perspectives": [p.to_dict() for p in self.perspectives],
             "puzzles": [p.to_dict() for p in self.puzzles],
             "accounted": sorted(self.accounted),
             "considered_at": self._considered_at,
+            "scanned": self._scanned,
         }
 
     def restore(self, d: dict) -> None:
         self.age = d["age"]
         self.body = Body.from_dict(d["body"])
+        self.disposition = Disposition.from_dict(d["disposition"])
         self.perspectives = [Perspective.from_dict(p) for p in d["perspectives"]]
         self.puzzles = [Puzzle(**p) for p in d["puzzles"]]
         self.accounted = set(d["accounted"])
         self._considered_at = d.get("considered_at", 0)
+        self._scanned = d.get("scanned", 0)

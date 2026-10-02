@@ -12,7 +12,8 @@ against consequence.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Iterable, Optional
+from types import MappingProxyType
+from typing import Callable, Iterable, Mapping, Optional
 
 
 @dataclass(frozen=True)
@@ -122,15 +123,13 @@ class ChannelView:
     experiences: tuple
     open: tuple
     categories: tuple
+    lookup: Mapping = field(default_factory=lambda: MappingProxyType({}))
 
     def valenced(self, source: Iterable[Experience]) -> tuple:
         return tuple(e for e in source if e.valence is not None and e.features is not None)
 
     def by_index(self, index: int) -> Optional[Experience]:
-        for e in self.experiences:
-            if e.index == index:
-                return e
-        return None
+        return self.lookup.get(index)
 
 
 def purity(exps: Iterable[Experience]) -> float:
@@ -197,6 +196,7 @@ class Channel:
                 )
                 for c in self.categories.values()
             ),
+            lookup=MappingProxyType(dict(self.experiences)),
         )
 
     # -- carving -----------------------------------------------------------

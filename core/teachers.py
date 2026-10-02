@@ -72,38 +72,38 @@ class AxisTeacher:
 
     def regard(self, view: ChannelView, tick: int) -> Perspective:
         lived = view.valenced(view.open)
-        signs = {e.sign for e in lived}
-        if signs != {1, -1}:
+        if {e.sign for e in lived} != {1, -1}:
             return Perspective(self.id, tick, "I see only one sign here, or none; nothing to divide.")
-        values = sorted({e.features[self.axis] for e in lived})
-        if len(values) < 2:
+        points = sorted((e.features[self.axis], e.sign) for e in lived)
+        n = len(points)
+        total_pos = sum(1 for _, s in points if s > 0)
+        best = None
+        pos_lo = 0
+        for i in range(1, n):
+            if points[i - 1][1] > 0:
+                pos_lo += 1
+            if points[i][0] == points[i - 1][0]:
+                continue
+            lo_n, hi_n = i, n - i
+            pos_hi = total_pos - pos_lo
+            sorted_right = max(pos_lo, lo_n - pos_lo) + max(pos_hi, hi_n - pos_hi)
+            if best is None or sorted_right > best[0]:
+                best = (sorted_right, (points[i - 1][0] + points[i][0]) / 2)
+        if best is None:
             return Perspective(
                 self.id, tick,
                 "Along my axis everything sits in the same place; I cannot tell the signs apart.",
             )
-        best = None
-        for lo_v, hi_v in zip(values, values[1:]):
-            thr = (lo_v + hi_v) / 2
-            hi = [e for e in lived if e.features[self.axis] >= thr]
-            lo = [e for e in lived if e.features[self.axis] < thr]
-            sorted_right = _majority(hi) + _majority(lo)
-            if best is None or sorted_right > best[0]:
-                best = (sorted_right, thr)
         sorted_right, thr = best
         return Perspective(
             self.id, tick,
-            f"Along axis {self.axis} a line at {thr:.3f} sorts {sorted_right} of {len(lived)}.",
+            f"Along axis {self.axis} a line at {thr:.3f} sorts {sorted_right} of {n}.",
             proposal=Rule(axis=self.axis, threshold=thr),
         )
 
 
-def _majority(exps) -> int:
-    pos = sum(1 for e in exps if e.sign > 0)
-    return max(pos, len(exps) - pos)
-
-
 class NearnessTeacher:
-    """Looks at pairs, not axes.
+    """Looks at pairs, not axes, and only at recent ones.
 
     Finds the two closest lived experiences with opposite consequences. If they
     are far apart it proposes the axis along which they differ most. If they
@@ -112,9 +112,10 @@ class NearnessTeacher:
     """
 
     id = "nearness"
+    WINDOW = 80  # it only remembers the most recent consequences
 
     def regard(self, view: ChannelView, tick: int) -> Perspective:
-        lived = view.valenced(view.experiences)
+        lived = view.valenced(view.experiences)[-self.WINDOW:]
         best = None
         for i, a in enumerate(lived):
             for b in lived[i + 1:]:
